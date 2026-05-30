@@ -44,17 +44,38 @@ def generate(schema_path: Path, out_path: Path):
   m = 28
   c = canvas.Canvas(str(out_path), pagesize=A4)
 
-  _text(c, m, page_h - 40, "WORK PERMIT APPLICATION FORM", size=16, bold=True, color=colors.HexColor("#1f7a55"))
-  _text(c, m, page_h - 56, "Generated from extracted labels (schema)", size=8, color=colors.HexColor("#62706a"))
-  c.setStrokeColor(colors.HexColor("#dce3df"))
-  c.line(m, page_h - 64, page_w - m, page_h - 64)
-
+  bottom = 40
   y = page_h - 96
   label_w = 160
   field_w = page_w - m * 2 - label_w
 
+  def header(page_no: int):
+    if page_no == 0:
+      _text(c, m, page_h - 40, "WORK PERMIT APPLICATION FORM", size=16, bold=True, color=colors.HexColor("#1f7a55"))
+      _text(c, m, page_h - 56, "Generated from extracted labels (schema)", size=8, color=colors.HexColor("#62706a"))
+    else:
+      _text(c, m, page_h - 36, "WORK PERMIT APPLICATION FORM (cont.)", size=12, bold=True, color=colors.HexColor("#1f7a55"))
+    c.setStrokeColor(colors.HexColor("#dce3df"))
+    c.line(m, page_h - 64, page_w - m, page_h - 64)
+
+  page_no = 0
+  header(page_no)
+
+  def new_page():
+    nonlocal page_no, y
+    c.showPage()
+    page_no += 1
+    header(page_no)
+    y = page_h - 84
+
+  def ensure_space(h: float):
+    nonlocal y
+    if y - h < bottom:
+      new_page()
+
   def section(title: str):
     nonlocal y
+    ensure_space(26)
     c.setFillColor(colors.HexColor("#eef5f1"))
     c.rect(m, y - 2, page_w - m * 2, 16, fill=1, stroke=0)
     _text(c, m + 6, y + 2, title, size=9, bold=True)
@@ -62,6 +83,7 @@ def generate(schema_path: Path, out_path: Path):
 
   def row(label: str, field: str):
     nonlocal y
+    ensure_space(24)
     _text(c, m, y + 4, label, bold=True)
     _textfield(c, field, m + label_w, y, field_w)
     y -= 24
@@ -73,6 +95,7 @@ def generate(schema_path: Path, out_path: Path):
   col_w = (page_w - m * 2 - col_gap) / 2
   def two_col_row(label: str, left_name: str, right_name: str):
     nonlocal y
+    ensure_space(24)
     _text(c, m, y + 4, label, bold=True)
     x1 = m + label_w
     _textfield(c, left_name, x1, y, col_w - label_w - col_gap / 2)
@@ -100,6 +123,7 @@ def generate(schema_path: Path, out_path: Path):
   cols = 2
   per_col = (len(res_opts) + cols - 1) // cols
   base_x = m + label_w
+  ensure_space(per_col * 16 + 12)
   for idx, opt in enumerate(res_opts):
     col = idx // per_col
     rowi = idx % per_col
@@ -116,6 +140,7 @@ def generate(schema_path: Path, out_path: Path):
   row("Profession", "profession")
   row("Employer/Company", "employer_company")
   row("Mobile Phone", "mobile_phone")
+  ensure_space(60)
   _text(c, m, y + 28, "Address", bold=True)
   c.acroForm.textfield(
     name="address",
@@ -134,16 +159,14 @@ def generate(schema_path: Path, out_path: Path):
   )
   y -= 54
 
-  _text(c, m, y + 4, "Email", bold=True)
-  _textfield(c, "email", m + label_w, y, field_w * 0.62)
-  _text(c, m + label_w + field_w * 0.62 + 10, y + 4, "Home Phone", bold=True)
-  _textfield(c, "home_phone", m + label_w + field_w * 0.62 + 98, y, field_w * 0.38 - 98)
-  y -= 26
+  row("Email", "email")
+  row("Home Phone", "home_phone")
 
   section("Type of House")
   house_opts = [o["text"] for o in schema.get("options", {}).get("typeOfHouse", [])]
   if not house_opts:
     house_opts = ["Bungalow", "Terrace", "Semi-D", "Private Flat", "HDB 4 Rooms", "HDB 5 Rooms & Above", "Condominium", "Other"]
+  ensure_space(((len(house_opts) + 1) // 2) * 16 + 12)
   for idx, opt in enumerate(house_opts):
     col = idx % 2
     rowi = idx // 2
@@ -153,6 +176,7 @@ def generate(schema_path: Path, out_path: Path):
   y -= ((len(house_opts) + 1) // 2) * 16 + 8
 
   section("Family Members")
+  ensure_space(16 + 14 + 3 * 22 + 16)
   y -= 16
   headers = [("Name", 220), ("ID Number", 110), ("Date of Birth", 110), ("Relationship", field_w - 220 - 110 - 110)]
   x = m + label_w
@@ -176,6 +200,7 @@ def generate(schema_path: Path, out_path: Path):
   purpose_opts = [o["text"] for o in schema.get("options", {}).get("purpose", [])]
   if not purpose_opts:
     purpose_opts = ["a new FDW", "a replacement", "an additional FDW"]
+  ensure_space(34)
   for idx, opt in enumerate(purpose_opts):
     _checkbox(c, f"purpose_{idx}", m + label_w + idx * 180, y, opt)
   y -= 26
@@ -186,6 +211,7 @@ def generate(schema_path: Path, out_path: Path):
 
   def pair_row(left_label: str, left_field: str, right_label: str, right_field: str):
     nonlocal y
+    ensure_space(24)
     half = (field_w - 18) / 2
     _text(c, m, y + 4, left_label, bold=True)
     _textfield(c, left_field, m + label_w, y, half)
