@@ -1,6 +1,7 @@
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-import cgi
+from email.parser import BytesParser
+from email.policy import default
 import json
 import os
 import re
@@ -270,13 +271,29 @@ class Handler(SimpleHTTPRequestHandler):
         if self.path != "/api/import-biodata":
             self.send_error(404)
             return
-        form = cgi.FieldStorage(fp=self.rfile, headers=self.headers, environ={"REQUEST_METHOD": "POST"})
-        file_item = form["pdf"] if "pdf" in form else None
-        if file_item is None or not getattr(file_item, "file", None):
+        content_type = self.headers.get("Content-Type", "")
+        content_length = int(self.headers.get("Content-Length", "0") or "0")
+        if "multipart/form-data" not in content_type.lower() or content_length <= 0:
+            self.send_error(400, "Invalid content")
+            return
+        body = self.rfile.read(content_length)
+        raw = f"Content-Type: {content_type}\r\nMIME-Version: 1.0\r\n\r\n".encode("utf-8") + body
+        msg = BytesParser(policy=default).parsebytes(raw)
+        pdf_bytes = None
+        for part in msg.iter_parts():
+            disp = part.get("Content-Disposition", "")
+            if "form-data" not in disp:
+                continue
+            name = part.get_param("name", header="content-disposition")
+            if name != "pdf":
+                continue
+            pdf_bytes = part.get_payload(decode=True)
+            break
+        if not pdf_bytes:
             self.send_error(400, "Missing PDF")
             return
         upload_path = ASSETS / f"upload-{int(time.time() * 1000)}.pdf"
-        upload_path.write_bytes(file_item.file.read())
+        upload_path.write_bytes(pdf_bytes)
         try:
             maid = build_maid(upload_path)
             body = json.dumps({"maid": maid}, ensure_ascii=False).encode("utf-8")

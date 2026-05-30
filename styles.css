@@ -305,8 +305,10 @@ textarea {
   font-size: 13px;
 }
 
-.sidebar-downloads a {
+.sidebar-downloads a,
+.sidebar-downloads button {
   display: block;
+  width: 100%;
   padding: 11px 14px;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -315,10 +317,41 @@ textarea {
   font-size: 14px;
   font-weight: 800;
   text-decoration: none;
+  text-align: left;
+  cursor: pointer;
 }
 
-.sidebar-downloads a:hover {
+.sidebar-downloads a:hover,
+.sidebar-downloads button:hover {
   background: #eaf5ef;
+}
+
+#previewDialog {
+  width: min(980px, calc(100vw - 28px));
+}
+
+.preview-shell {
+  padding: 18px;
+}
+
+.preview-body {
+  height: min(70vh, 720px);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+  background: #fbfdfc;
+}
+
+.preview-body iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+.preview-footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 12px;
 }
 
 .admin-content {

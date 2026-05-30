@@ -413,6 +413,50 @@ const save = () => localStorage.setItem("maidAgencyState", JSON.stringify(state)
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
 
+const previewDialog = $("#previewDialog");
+const previewFrame = $("#previewFrame");
+const previewTitle = $("#previewTitle");
+const previewClose = $("#previewClose");
+const previewOpen = $("#previewOpen");
+
+function openPdfPreview(url, title) {
+  if (!previewDialog || !previewFrame) return;
+  if (previewTitle) previewTitle.textContent = title || "预览";
+  if (previewOpen) previewOpen.href = url || "#";
+  previewFrame.src = url;
+  previewDialog.showModal();
+}
+
+function closePdfPreview() {
+  if (!previewDialog || !previewFrame) return;
+  previewDialog.close();
+  previewFrame.src = "";
+  if (previewOpen) previewOpen.href = "#";
+}
+
+if (previewClose) {
+  previewClose.addEventListener("click", closePdfPreview);
+}
+
+if (previewDialog) {
+  previewDialog.addEventListener("close", () => {
+    if (previewFrame) previewFrame.src = "";
+    if (previewOpen) previewOpen.href = "#";
+  });
+}
+
+const downloads = $(".sidebar-downloads");
+if (downloads) {
+  downloads.addEventListener("click", (event) => {
+    const target = event.target.closest(".download-preview");
+    if (!target) return;
+    const url = target.getAttribute("data-url") || "";
+    const title = target.getAttribute("data-title") || target.textContent || "预览";
+    if (!url) return;
+    openPdfPreview(url, title);
+  });
+}
+
 function maidById(id) {
   return state.maids.find((maid) => maid.id === id);
 }

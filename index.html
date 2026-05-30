@@ -81,17 +81,17 @@
             <button data-admin-tab="documents">电子签名</button>
             <div class="sidebar-downloads">
               <h3>表格下载</h3>
-              <a href="assets/blank_biodata_template.pdf" download>空白 Biodata 模板</a>
-              <a href="assets/blank_quotation_template.pdf" download>空白 Quotation 报价单</a>
-              <a href="assets/blank_wp_application_template.pdf" download>Work Permit 申请资料</a>
-              <a href="assets/blank_service_agreement_template.pdf" download>Standard Service Agreement</a>
-              <a href="assets/blank_form_a_services_fees_template.pdf" download>Form A 服务费用表</a>
-              <a href="assets/blank_pdpa_statement_template.pdf" download>PDPA 声明</a>
-              <a href="assets/blank_insurance_proposal_template.pdf" download>保险 Proposal</a>
-              <a href="assets/blank_employment_contract_template.pdf" download>Employment Contract</a>
-              <a href="assets/blank_job_offer_template.pdf" download>Job Offer</a>
-              <a href="assets/blank_safety_agreement_template.pdf" download>Safety Agreement</a>
-              <a href="assets/blank_rest_day_agreement_template.pdf" download>Rest Day Agreement</a>
+              <button type="button" class="download-preview" data-url="assets/blank_biodata_template.pdf" data-title="空白 Biodata 模板">空白 Biodata 模板</button>
+              <button type="button" class="download-preview" data-url="assets/blank_quotation_template.pdf" data-title="空白 Quotation 报价单">空白 Quotation 报价单</button>
+              <button type="button" class="download-preview" data-url="assets/blank_wp_application_template.pdf" data-title="Work Permit 申请资料">Work Permit 申请资料</button>
+              <button type="button" class="download-preview" data-url="assets/blank_service_agreement_template.pdf" data-title="Standard Service Agreement">Standard Service Agreement</button>
+              <button type="button" class="download-preview" data-url="assets/blank_form_a_services_fees_template.pdf" data-title="Form A 服务费用表">Form A 服务费用表</button>
+              <button type="button" class="download-preview" data-url="assets/blank_pdpa_statement_template.pdf" data-title="PDPA 声明">PDPA 声明</button>
+              <button type="button" class="download-preview" data-url="assets/blank_insurance_proposal_template.pdf" data-title="保险 Proposal">保险 Proposal</button>
+              <button type="button" class="download-preview" data-url="assets/blank_employment_contract_template.pdf" data-title="Employment Contract">Employment Contract</button>
+              <button type="button" class="download-preview" data-url="assets/blank_job_offer_template.pdf" data-title="Job Offer">Job Offer</button>
+              <button type="button" class="download-preview" data-url="assets/blank_safety_agreement_template.pdf" data-title="Safety Agreement">Safety Agreement</button>
+              <button type="button" class="download-preview" data-url="assets/blank_rest_day_agreement_template.pdf" data-title="Rest Day Agreement">Rest Day Agreement</button>
             </div>
           </aside>
 
@@ -196,6 +196,21 @@
           <button id="dialogSubmit" value="default" class="primary-btn">保存</button>
         </menu>
       </form>
+    </dialog>
+
+    <dialog id="previewDialog">
+      <div class="preview-shell">
+        <div class="dialog-head preview-head">
+          <h2 id="previewTitle">预览</h2>
+          <button id="previewClose" type="button" class="icon-btn" aria-label="关闭">×</button>
+        </div>
+        <div class="preview-body">
+          <iframe id="previewFrame" title="PDF 预览" loading="lazy"></iframe>
+        </div>
+        <div class="preview-footer">
+          <a id="previewOpen" class="mini-link" href="#" target="_blank" rel="noreferrer">新标签页打开</a>
+        </div>
+      </div>
     </dialog>
 
     <script src="app.js"></script>
