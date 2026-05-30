@@ -81,12 +81,10 @@ def generate(schema_path: Path, out_path: Path):
     _text(c, m + 6, y + 2, title, size=9, bold=True)
     y -= 22
 
-  def row(label: str, field: str, height: float = 16, multiline: bool = False):
+  def row(label: str, field: str, height: float = 16, multiline: bool = False, gap: float | None = None):
     nonlocal y
-    gap = 18 if height > 16 else 8
-    pre_gap = max(0.0, height - 24)
-    ensure_space(height + gap + pre_gap)
-    y -= pre_gap
+    row_gap = gap if gap is not None else (18 if height > 16 else 8)
+    ensure_space(height + row_gap)
     label_size = 9
     _text(c, m, y + (height - label_size) / 2 + 1, label, size=label_size, bold=True)
     if multiline:
@@ -107,7 +105,7 @@ def generate(schema_path: Path, out_path: Path):
       )
     else:
       _textfield(c, field, m + label_w, y, field_w, h=height)
-    y -= height + gap
+    y -= height + row_gap
 
   row("File No.", "file_no")
 
@@ -160,9 +158,8 @@ def generate(schema_path: Path, out_path: Path):
 
   row("Profession", "profession")
   row("Employer/Company", "employer_company")
-  row("Mobile Phone", "mobile_phone")
-
-  row("Address", "address", height=26, multiline=True)
+  row("Mobile Phone", "mobile_phone", gap=8)
+  row("Address", "address", height=26, multiline=True, gap=8)
   row("Email", "email")
   row("Home Phone", "home_phone")
 
