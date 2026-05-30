@@ -85,7 +85,8 @@ def generate(schema_path: Path, out_path: Path):
     nonlocal y
     gap = 8
     ensure_space(height + gap)
-    _text(c, m, y + (height - 12), label, bold=True)
+    label_size = 9
+    _text(c, m, y + (height - label_size) / 2 + 1, label, size=label_size, bold=True)
     if multiline:
       c.acroForm.textfield(
         name=field,
