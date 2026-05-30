@@ -81,12 +81,30 @@ def generate(schema_path: Path, out_path: Path):
     _text(c, m + 6, y + 2, title, size=9, bold=True)
     y -= 22
 
-  def row(label: str, field: str):
+  def row(label: str, field: str, height: float = 16, multiline: bool = False):
     nonlocal y
-    ensure_space(24)
-    _text(c, m, y + 4, label, bold=True)
-    _textfield(c, field, m + label_w, y, field_w)
-    y -= 24
+    gap = 8
+    ensure_space(height + gap)
+    _text(c, m, y + (height - 12), label, bold=True)
+    if multiline:
+      c.acroForm.textfield(
+        name=field,
+        x=m + label_w,
+        y=y,
+        width=field_w,
+        height=height,
+        borderColor=colors.HexColor("#4d5a55"),
+        fillColor=colors.white,
+        textColor=colors.black,
+        borderWidth=0.7,
+        fontName="Helvetica",
+        fontSize=9,
+        forceBorder=True,
+        fieldFlags=4096,
+      )
+    else:
+      _textfield(c, field, m + label_w, y, field_w, h=height)
+    y -= height + gap
 
   row("File No.", "file_no")
 
@@ -140,25 +158,8 @@ def generate(schema_path: Path, out_path: Path):
   row("Profession", "profession")
   row("Employer/Company", "employer_company")
   row("Mobile Phone", "mobile_phone")
-  ensure_space(60)
-  _text(c, m, y + 28, "Address", bold=True)
-  c.acroForm.textfield(
-    name="address",
-    x=m + label_w,
-    y=y,
-    width=field_w,
-    height=42,
-    borderColor=colors.HexColor("#4d5a55"),
-    fillColor=colors.white,
-    textColor=colors.black,
-    borderWidth=0.7,
-    fontName="Helvetica",
-    fontSize=9,
-    forceBorder=True,
-    fieldFlags="multiline",
-  )
-  y -= 54
 
+  row("Address", "address", height=42, multiline=True)
   row("Email", "email")
   row("Home Phone", "home_phone")
 
@@ -166,33 +167,40 @@ def generate(schema_path: Path, out_path: Path):
   house_opts = [o["text"] for o in schema.get("options", {}).get("typeOfHouse", [])]
   if not house_opts:
     house_opts = ["Bungalow", "Terrace", "Semi-D", "Private Flat", "HDB 4 Rooms", "HDB 5 Rooms & Above", "Condominium", "Other"]
+  table_x = m
+  table_w = page_w - m * 2
+  col_w2 = (table_w - 24) / 2
   ensure_space(((len(house_opts) + 1) // 2) * 16 + 12)
   for idx, opt in enumerate(house_opts):
     col = idx % 2
     rowi = idx // 2
-    x = m + label_w + col * 220
+    x = table_x + 12 + col * col_w2
     yy = y - rowi * 16
     _checkbox(c, f"house_{idx}", x, yy, opt)
   y -= ((len(house_opts) + 1) // 2) * 16 + 8
 
   section("Family Members")
-  ensure_space(16 + 14 + 3 * 22 + 16)
+  table_x = m
+  table_w = page_w - m * 2
+  name_w = table_w * 0.5
+  id_w = table_w * 0.25
+  dob_w = table_w - name_w - id_w
+  ensure_space(16 + 14 + 3 * 22 + 12)
   y -= 16
-  headers = [("Name", 220), ("ID Number", 110), ("Date of Birth", 110), ("Relationship", field_w - 220 - 110 - 110)]
-  x = m + label_w
-  for hlabel, wcol in headers:
-    _text(c, x + 4, y + 4, hlabel, size=8, bold=True, color=colors.HexColor("#62706a"))
-    x += wcol
+  x = table_x
+  _text(c, x + 4, y + 4, "Name", size=8, bold=True, color=colors.HexColor("#62706a"))
+  x += name_w
+  _text(c, x + 4, y + 4, "ID Number", size=8, bold=True, color=colors.HexColor("#62706a"))
+  x += id_w
+  _text(c, x + 4, y + 4, "Date of Birth", size=8, bold=True, color=colors.HexColor("#62706a"))
   y -= 14
   for i in range(1, 4):
-    x = m + label_w
-    _textfield(c, f"family_{i}_name", x, y, 220)
-    x += 220
-    _textfield(c, f"family_{i}_id", x, y, 110)
-    x += 110
-    _textfield(c, f"family_{i}_dob", x, y, 110)
-    x += 110
-    _textfield(c, f"family_{i}_relationship", x, y, field_w - 220 - 110 - 110)
+    x = table_x
+    _textfield(c, f"family_{i}_name", x, y, name_w)
+    x += name_w
+    _textfield(c, f"family_{i}_id", x, y, id_w)
+    x += id_w
+    _textfield(c, f"family_{i}_dob", x, y, dob_w)
     y -= 22
   y -= 4
 
@@ -200,10 +208,18 @@ def generate(schema_path: Path, out_path: Path):
   purpose_opts = [o["text"] for o in schema.get("options", {}).get("purpose", [])]
   if not purpose_opts:
     purpose_opts = ["a new FDW", "a replacement", "an additional FDW"]
-  ensure_space(34)
+  table_x = m
+  table_w = page_w - m * 2
+  col_w2 = (table_w - 24) / 2
+  rows_needed = (len(purpose_opts) + 1) // 2
+  ensure_space(rows_needed * 16 + 14)
   for idx, opt in enumerate(purpose_opts):
-    _checkbox(c, f"purpose_{idx}", m + label_w + idx * 180, y, opt)
-  y -= 26
+    col = idx % 2
+    rowi = idx // 2
+    x = table_x + 12 + col * col_w2
+    yy = y - rowi * 16
+    _checkbox(c, f"purpose_{idx}", x, yy, opt)
+  y -= rows_needed * 16 + 10
   row("FIN No. of FDW to be replaced", "replacement_fin")
   row("FDW to be replaced", "replacement_fdw")
 
