@@ -162,7 +162,7 @@ def generate(schema_path: Path, out_path: Path):
   row("Employer/Company", "employer_company")
   row("Mobile Phone", "mobile_phone")
 
-  row("Address", "address", height=42, multiline=True)
+  row("Address", "address", height=26, multiline=True)
   row("Email", "email")
   row("Home Phone", "home_phone")
 
