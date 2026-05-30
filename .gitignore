@@ -1,4 +1,6 @@
 _git/
+.venv/
+__pycache__/
 assets/upload-*.pdf
 assets/maid-*-candidate-*
 assets/maid-*-photo.*
