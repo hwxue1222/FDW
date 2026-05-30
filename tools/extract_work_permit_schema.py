@@ -85,7 +85,87 @@ def extract_schema(pdf_path: Path):
   page = doc[0]
   spans = _extract_spans(page)
 
-  labels = [
+  groups = [
+    {
+      "id": "employer_spouse",
+      "title": "Employer / Spouse",
+      "fields": [
+        {"id": "employer_name", "label": "Name", "kind": "text"},
+        {"id": "spouse_name", "label": "Name", "kind": "text"},
+        {"id": "employer_dob", "label": "Date of Birth", "kind": "text"},
+        {"id": "spouse_dob", "label": "Date of Birth", "kind": "text"},
+        {"id": "employer_nric", "label": "NRIC No.", "kind": "text"},
+        {"id": "spouse_nric", "label": "NRIC No.", "kind": "text"},
+        {"id": "employer_passport", "label": "Passport", "kind": "text"},
+        {"id": "spouse_passport", "label": "Passport", "kind": "text"},
+      ],
+    },
+    {
+      "id": "residential_status",
+      "title": "Residential Status",
+      "kind": "multi_checkbox",
+    },
+    {
+      "id": "household",
+      "title": "Household",
+      "fields": [
+        {"id": "married_in_sg", "label": "Married in SG?", "kind": "radio"},
+        {"id": "profession", "label": "Profession", "kind": "text"},
+        {"id": "employer_company", "label": "Employer/Company", "kind": "text"},
+        {"id": "mobile_phone", "label": "Mobile Phone", "kind": "text"},
+        {"id": "address", "label": "Address", "kind": "textarea"},
+        {"id": "email", "label": "Email", "kind": "text"},
+        {"id": "home_phone", "label": "Home Phone", "kind": "text"},
+      ],
+    },
+    {
+      "id": "type_of_house",
+      "title": "Type of House",
+      "kind": "multi_checkbox",
+    },
+    {
+      "id": "family_members",
+      "title": "Name of Family Members",
+      "kind": "table",
+      "columns": ["Name of Family Members", "ID Number", "Date of Birth", "Relationship"],
+    },
+    {
+      "id": "purpose",
+      "title": "Purpose of this application is to hire",
+      "kind": "choice_with_details",
+    },
+    {
+      "id": "maid_details",
+      "title": "Maid details",
+      "fields": [
+        {"id": "maid_name", "label": "Maid Name:", "kind": "text"},
+        {"id": "maid_code", "label": "Code No:", "kind": "text"},
+        {"id": "maid_work_permit", "label": "Work Permit:", "kind": "text"},
+        {"id": "maid_fin", "label": "Fin No:", "kind": "text"},
+        {"id": "maid_passport", "label": "Passport No:", "kind": "text"},
+        {"id": "maid_dob", "label": "Date of Birth:", "kind": "text"},
+      ],
+    },
+    {
+      "id": "sponsor",
+      "title": "Sponsor details",
+      "fields": [
+        {"id": "sponsor1_name", "label": "Sponsor 1 / Name:", "kind": "text"},
+        {"id": "sponsor1_nric", "label": "NRIC No.:", "kind": "text"},
+        {"id": "sponsor1_nationality", "label": "Nationality:", "kind": "text"},
+        {"id": "sponsor1_dob", "label": "Date of Birth:", "kind": "text"},
+        {"id": "sponsor1_relationship", "label": "Relationship with Employer:", "kind": "text"},
+        {"id": "sponsor1_contact", "label": "Contact No.:", "kind": "text"},
+        {"id": "sponsor_married_in_sg", "label": "Married in SG?", "kind": "text"},
+        {"id": "sponsor_spouse_name", "label": "Name of Sponsor's Spouse:", "kind": "text"},
+        {"id": "sponsor_spouse_nric", "label": "NRIC No.:", "kind": "text"},
+        {"id": "sponsor_spouse_dob", "label": "Date of Birth:", "kind": "text"},
+      ],
+    },
+  ]
+
+  anchors = []
+  anchor_labels = [
     "Name",
     "Date of Birth",
     "NRIC No.",
@@ -106,19 +186,16 @@ def extract_schema(pdf_path: Path):
     "Passport No:",
     "Code No:",
     "Fin No:",
-    "Date of Birth:",
     "Sponsor 1 / Name:",
     "Nationality:",
     "Relationship with Employer:",
     "Contact No.:",
     "Name of Sponsor's Spouse:",
   ]
-
-  found_labels = []
-  for lab in labels:
+  for lab in anchor_labels:
     hit = _find_one(spans, re.escape(lab))
     if hit:
-      found_labels.append({"label": lab, "bbox": hit.bbox})
+      anchors.append({"label": lab, "bbox": hit.bbox})
 
   col_headers = []
   for lab in ["Employer", "Spouse"]:
@@ -145,10 +222,12 @@ def extract_schema(pdf_path: Path):
   purpose_options.sort(key=lambda o: (o["bbox"][1], o["bbox"][0]))
 
   return {
+    "version": 2,
     "pdf": str(pdf_path),
     "pageSize": list(page.rect),
     "columns": col_headers,
-    "labels": found_labels,
+    "anchors": anchors,
+    "groups": groups,
     "options": {
       "residentialStatus": residential_options,
       "typeOfHouse": house_options,

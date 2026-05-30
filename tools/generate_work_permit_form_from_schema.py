@@ -45,13 +45,20 @@ def generate(schema_path: Path, out_path: Path):
   c = canvas.Canvas(str(out_path), pagesize=A4)
 
   _text(c, m, page_h - 40, "WORK PERMIT APPLICATION FORM", size=16, bold=True, color=colors.HexColor("#1f7a55"))
-  _text(c, m, page_h - 56, "Generated from extracted labels (info-bar schema)", size=8, color=colors.HexColor("#62706a"))
+  _text(c, m, page_h - 56, "Generated from extracted labels (schema)", size=8, color=colors.HexColor("#62706a"))
   c.setStrokeColor(colors.HexColor("#dce3df"))
   c.line(m, page_h - 64, page_w - m, page_h - 64)
 
   y = page_h - 96
   label_w = 160
   field_w = page_w - m * 2 - label_w
+
+  def section(title: str):
+    nonlocal y
+    c.setFillColor(colors.HexColor("#eef5f1"))
+    c.rect(m, y - 2, page_w - m * 2, 16, fill=1, stroke=0)
+    _text(c, m + 6, y + 2, title, size=9, bold=True)
+    y -= 22
 
   def row(label: str, field: str):
     nonlocal y
@@ -61,8 +68,7 @@ def generate(schema_path: Path, out_path: Path):
 
   row("File No.", "file_no")
 
-  _text(c, m, y + 6, "Employer / Spouse", bold=True)
-  y -= 18
+  section("Employer / Spouse")
   col_gap = 18
   col_w = (page_w - m * 2 - col_gap) / 2
   def two_col_row(label: str, left_name: str, right_name: str):
@@ -80,8 +86,7 @@ def generate(schema_path: Path, out_path: Path):
   two_col_row("NRIC No.", "employer_nric", "spouse_nric")
   two_col_row("Passport", "employer_passport", "spouse_passport")
 
-  _text(c, m, y + 6, "Residential Status (multi-select)", bold=True)
-  y -= 18
+  section("Residential Status")
   res_opts = [o["text"] for o in schema.get("options", {}).get("residentialStatus", [])]
   uniq = []
   seen = set()
@@ -135,8 +140,7 @@ def generate(schema_path: Path, out_path: Path):
   _textfield(c, "home_phone", m + label_w + field_w * 0.62 + 98, y, field_w * 0.38 - 98)
   y -= 26
 
-  _text(c, m, y + 6, "Type of House", bold=True)
-  y -= 18
+  section("Type of House")
   house_opts = [o["text"] for o in schema.get("options", {}).get("typeOfHouse", [])]
   if not house_opts:
     house_opts = ["Bungalow", "Terrace", "Semi-D", "Private Flat", "HDB 4 Rooms", "HDB 5 Rooms & Above", "Condominium", "Other"]
@@ -148,7 +152,7 @@ def generate(schema_path: Path, out_path: Path):
     _checkbox(c, f"house_{idx}", x, yy, opt)
   y -= ((len(house_opts) + 1) // 2) * 16 + 8
 
-  _text(c, m, y + 6, "Family Members", bold=True)
+  section("Family Members")
   y -= 16
   headers = [("Name", 220), ("ID Number", 110), ("Date of Birth", 110), ("Relationship", field_w - 220 - 110 - 110)]
   x = m + label_w
@@ -168,8 +172,7 @@ def generate(schema_path: Path, out_path: Path):
     y -= 22
   y -= 4
 
-  _text(c, m, y + 6, "Purpose of this application is to hire", bold=True)
-  y -= 18
+  section("Purpose of this application is to hire")
   purpose_opts = [o["text"] for o in schema.get("options", {}).get("purpose", [])]
   if not purpose_opts:
     purpose_opts = ["a new FDW", "a replacement", "an additional FDW"]
@@ -179,27 +182,28 @@ def generate(schema_path: Path, out_path: Path):
   row("FIN No. of FDW to be replaced", "replacement_fin")
   row("FDW to be replaced", "replacement_fdw")
 
-  _text(c, m, y + 6, "Maid details", bold=True)
-  y -= 18
-  row("Maid Name", "maid_name")
-  row("Code No.", "maid_code")
-  row("Work Permit", "maid_work_permit")
-  row("FIN No.", "maid_fin")
-  row("Passport No.", "maid_passport")
-  row("Date of Birth", "maid_dob")
+  section("Maid details")
 
-  _text(c, m, y + 6, "Sponsor details", bold=True)
-  y -= 18
-  row("Sponsor 1 / Name", "sponsor1_name")
-  row("Sponsor 1 NRIC No.", "sponsor1_nric")
-  row("Nationality", "sponsor1_nationality")
-  row("Date of Birth", "sponsor1_dob")
-  row("Relationship with Employer", "sponsor1_relationship")
-  row("Contact No.", "sponsor1_contact")
+  def pair_row(left_label: str, left_field: str, right_label: str, right_field: str):
+    nonlocal y
+    half = (field_w - 18) / 2
+    _text(c, m, y + 4, left_label, bold=True)
+    _textfield(c, left_field, m + label_w, y, half)
+    _text(c, m + label_w + half + 18, y + 4, right_label, bold=True)
+    _textfield(c, right_field, m + label_w + half + 18 + 92, y, half - 92)
+    y -= 24
+
+  pair_row("Maid Name", "maid_name", "Code No.", "maid_code")
+  pair_row("Work Permit", "maid_work_permit", "Fin No.", "maid_fin")
+  pair_row("Passport No.", "maid_passport", "Date of Birth", "maid_dob")
+
+  section("Sponsor details")
+  pair_row("Sponsor 1 / Name", "sponsor1_name", "NRIC No.", "sponsor1_nric")
+  pair_row("Nationality", "sponsor1_nationality", "Date of Birth", "sponsor1_dob")
+  pair_row("Relationship with Employer", "sponsor1_relationship", "Contact No.", "sponsor1_contact")
   row("Married in SG?", "sponsor1_married")
-  row("Sponsor's Spouse Name", "sponsor_spouse_name")
-  row("Sponsor's Spouse NRIC No.", "sponsor_spouse_nric")
-  row("Sponsor's Spouse Date of Birth", "sponsor_spouse_dob")
+  pair_row("Name of Sponsor's Spouse", "sponsor_spouse_name", "NRIC No.", "sponsor_spouse_nric")
+  row("Date of Birth", "sponsor_spouse_dob")
 
   c.save()
 
@@ -214,4 +218,3 @@ def main():
 
 if __name__ == "__main__":
   main()
-
