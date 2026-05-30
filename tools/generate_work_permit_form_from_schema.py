@@ -83,7 +83,7 @@ def generate(schema_path: Path, out_path: Path):
 
   def row(label: str, field: str, height: float = 16, multiline: bool = False):
     nonlocal y
-    gap = 8
+    gap = 18 if height > 16 else 8
     ensure_space(height + gap)
     label_size = 9
     _text(c, m, y + (height - label_size) / 2 + 1, label, size=label_size, bold=True)
@@ -159,6 +159,9 @@ def generate(schema_path: Path, out_path: Path):
   row("Profession", "profession")
   row("Employer/Company", "employer_company")
   row("Mobile Phone", "mobile_phone")
+
+  ensure_space(12)
+  y -= 12
 
   row("Address", "address", height=42, multiline=True)
   row("Email", "email")
