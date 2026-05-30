@@ -251,11 +251,10 @@ def make_pdpa():
     title(c, "PERSONAL DATA PROTECTION STATEMENT", "Consent and declaration")
 
     master = OUT / "pdpa_statement_master.pdf"
-    lines = []
+    raw_lines = []
     if master.exists():
         doc = fitz.open(str(master))
-        text = doc[0].get_text("text")
-        lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
+        raw_lines = [ln.rstrip() for ln in doc[0].get_text("text").splitlines()]
 
     def wrap_text(txt: str, width: float, font: str, size: int):
         words = txt.split()
@@ -282,50 +281,83 @@ def make_pdpa():
             y -= leading
         return y
 
-    title_line = "Personal Data Protection Statement"
     org_label = "Organization name:"
     name_label = "Name of Client:"
     nric_label = "NRIC/PASSPORT/FIN:"
     sig_label = "Signature and Date:"
-
-    if lines and lines[0].lower().startswith("personal data protection statement"):
-        title_line = lines[0]
 
     y = PAGE_H - 92
     y = row(c, y, org_label, "organization_name")
     y -= 6
 
     body_lines = []
-    if lines:
+    if raw_lines:
+        normalized = [" ".join(ln.split()) for ln in raw_lines]
         try:
-            start = next(i for i, ln in enumerate(lines) if ln.lower().startswith("our agency"))
+            start = next(i for i, ln in enumerate(normalized) if ln.lower().startswith("our agency"))
         except StopIteration:
             start = 0
         try:
-            end = next(i for i, ln in enumerate(lines) if ln.lower().startswith("name of client"))
+            end = next(i for i, ln in enumerate(normalized) if ln.lower().startswith("name of client"))
         except StopIteration:
-            end = len(lines)
-        body_lines = lines[start:end]
+            end = len(normalized)
+        body_lines = [ln for ln in normalized[start:end] if ln]
 
     if not body_lines:
         body_lines = [
-            "Our agency places great importance regarding the collection of personal data we are entrusted to.",
-            "We take responsibilities under Singapore Personal Protection Act 2012 (PDPA) and believe it is our responsibility to manage, protect and process your personal data only with consent.",
+            "Our agency places great importance regarding the collection of personal data we are entrusted to. We take responsibilities under Singapore Personal Protection Act 2012 (PDPA) and believe it is our responsibility to manage, protect and process your personal data only with consent.",
+            "The data collected from our organization for processing of documents, that previously collected and/or collection in future, may be collected, used, disclosed and/or processed for one or more purposes as follows:",
         ]
 
-    in_declaration = False
+    def is_roman_item(ln: str):
+        return ln.startswith("i)") or ln.startswith("ii)") or ln.startswith("iii)") or ln.startswith("iv)") or ln.startswith("v)") or ln.startswith("vi)")
+
+    def is_alpha_item(ln: str):
+        return len(ln) >= 2 and ln[0].lower() in "abcde" and ln[1] == ")"
+
+    paragraphs = []
+    current = []
     for ln in body_lines:
-        if ln.strip().lower() == "declaration":
-            y = section(c, y, "Declaration")
-            in_declaration = True
+        low = ln.lower()
+        if low == "declaration":
+            if current:
+                paragraphs.append(" ".join(current).strip())
+                current = []
+            paragraphs.append("__SECTION__Declaration")
             continue
-        m = None
-        indent = 0.0
-        if ln.startswith("i)") or ln.startswith("ii)") or ln.startswith("iii)") or ln.startswith("iv)") or ln.startswith("v)") or ln.startswith("vi)"):
-            indent = 18.0
-        if ln and ln[0].lower() in "abcde" and ln[1:2] == ")":
-            indent = 18.0
-        y = draw_paragraph(y, ln, indent=indent, size=8, leading=11)
+
+        if is_roman_item(ln) or is_alpha_item(ln):
+            if current:
+                paragraphs.append(" ".join(current).strip())
+                current = []
+            paragraphs.append(ln)
+            continue
+
+        if low.startswith("the data collected") and current:
+            paragraphs.append(" ".join(current).strip())
+            current = [ln]
+            continue
+
+        current.append(ln)
+
+    if current:
+        paragraphs.append(" ".join(current).strip())
+
+    for para in paragraphs:
+        if para.startswith("__SECTION__"):
+            y = section(c, y, para.replace("__SECTION__", ""))
+            continue
+
+        if is_roman_item(para) or is_alpha_item(para):
+            marker = para.split(" ", 1)[0]
+            rest = para[len(marker) :].strip()
+            c.setFillColor(INK)
+            c.setFont("Helvetica", 8)
+            c.drawString(MARGIN, y, marker)
+            y = draw_paragraph(y, rest, indent=18.0, size=8, leading=11)
+        else:
+            y = draw_paragraph(y, para, indent=0.0, size=8, leading=11)
+
         if y < MARGIN + 120:
             c.showPage()
             title(c, "PERSONAL DATA PROTECTION STATEMENT (CONT.)", "")
