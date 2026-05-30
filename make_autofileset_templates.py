@@ -1,7 +1,9 @@
 from pathlib import Path
 
+import fitz
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
+from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfgen import canvas
 
 
@@ -246,28 +248,93 @@ def make_form_a():
 def make_pdpa():
     path = OUT / "blank_pdpa_statement_template.pdf"
     c = cnew(path, "Blank Personal Data Protection Statement")
-    title(c, "PERSONAL DATA PROTECTION STATEMENT", "Blank consent and declaration form")
-    y = PAGE_H - 90
-    small(c, "The data collected may be used for work permit applications, embassy matters, passport services, FDW hiring, transfer and related services.", MARGIN, y)
-    y -= 30
-    y = row(c, y, "Organization Name", "organization_name")
-    y = row(c, y, "Name of Client", "client_name")
-    y = row(c, y, "NRIC / Passport / FIN", "client_id")
-    y = row(c, y, "Contact No.", "contact_no")
-    y = row(c, y, "Email", "email")
-    y = section(c, y, "Declaration")
-    statements = [
-        "I/We agree to accept the Company policy.",
-        "I/We agree to inform the organization of any change in personal information.",
-        "I/We consent to personal data being used/disclosed for processing.",
-        "I/We agree not to publicly disclose FDW biodata or documents to third parties.",
-        "I/We have read and agree to the above statement.",
-    ]
-    for i, item in enumerate(statements, 1):
-        check(c, f"pdpa_{i}", MARGIN, y, item)
-        y -= 24
-    y -= 12
-    y = row(c, y, "Signature and Date", "signature_date")
+    title(c, "PERSONAL DATA PROTECTION STATEMENT", "Consent and declaration")
+
+    master = OUT / "pdpa_statement_master.pdf"
+    lines = []
+    if master.exists():
+        doc = fitz.open(str(master))
+        text = doc[0].get_text("text")
+        lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
+
+    def wrap_text(txt: str, width: float, font: str, size: int):
+        words = txt.split()
+        out = []
+        cur = []
+        for w in words:
+            trial = (" ".join(cur + [w])).strip()
+            if pdfmetrics.stringWidth(trial, font, size) <= width:
+                cur.append(w)
+            else:
+                if cur:
+                    out.append(" ".join(cur))
+                cur = [w]
+        if cur:
+            out.append(" ".join(cur))
+        return out
+
+    def draw_paragraph(y: float, txt: str, indent: float = 0.0, size: int = 8, leading: float = 11.0):
+        c.setFillColor(INK)
+        c.setFont("Helvetica", size)
+        max_w = PAGE_W - MARGIN * 2 - indent
+        for ln in wrap_text(txt, max_w, "Helvetica", size):
+            c.drawString(MARGIN + indent, y, ln)
+            y -= leading
+        return y
+
+    title_line = "Personal Data Protection Statement"
+    org_label = "Organization name:"
+    name_label = "Name of Client:"
+    nric_label = "NRIC/PASSPORT/FIN:"
+    sig_label = "Signature and Date:"
+
+    if lines and lines[0].lower().startswith("personal data protection statement"):
+        title_line = lines[0]
+
+    y = PAGE_H - 92
+    y = row(c, y, org_label, "organization_name")
+    y -= 6
+
+    body_lines = []
+    if lines:
+        try:
+            start = next(i for i, ln in enumerate(lines) if ln.lower().startswith("our agency"))
+        except StopIteration:
+            start = 0
+        try:
+            end = next(i for i, ln in enumerate(lines) if ln.lower().startswith("name of client"))
+        except StopIteration:
+            end = len(lines)
+        body_lines = lines[start:end]
+
+    if not body_lines:
+        body_lines = [
+            "Our agency places great importance regarding the collection of personal data we are entrusted to.",
+            "We take responsibilities under Singapore Personal Protection Act 2012 (PDPA) and believe it is our responsibility to manage, protect and process your personal data only with consent.",
+        ]
+
+    in_declaration = False
+    for ln in body_lines:
+        if ln.strip().lower() == "declaration":
+            y = section(c, y, "Declaration")
+            in_declaration = True
+            continue
+        m = None
+        indent = 0.0
+        if ln.startswith("i)") or ln.startswith("ii)") or ln.startswith("iii)") or ln.startswith("iv)") or ln.startswith("v)") or ln.startswith("vi)"):
+            indent = 18.0
+        if ln and ln[0].lower() in "abcde" and ln[1:2] == ")":
+            indent = 18.0
+        y = draw_paragraph(y, ln, indent=indent, size=8, leading=11)
+        if y < MARGIN + 120:
+            c.showPage()
+            title(c, "PERSONAL DATA PROTECTION STATEMENT (CONT.)", "")
+            y = PAGE_H - 92
+
+    y -= 10
+    y = row(c, y, name_label, "client_name")
+    y = row(c, y, nric_label, "client_id")
+    y = row(c, y, sig_label, "signature_date")
     c.save()
     return path
 
