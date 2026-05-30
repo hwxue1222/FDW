@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>女佣中介管理系统</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Maid Agency System</p>
+        <h1>女佣中介管理系统</h1>
+      </div>
+      <nav class="mode-switch" aria-label="系统入口">
+        <button class="active" data-view="front">前台</button>
+        <button data-view="admin">后台</button>
+      </nav>
+    </header>
+
+    <main>
+      <section id="signaturePortal" class="view">
+        <div class="signature-shell">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">E-Signature Link</p>
+              <h2>客户电子签署</h2>
+            </div>
+          </div>
+          <div id="signatureContent"></div>
+        </div>
+      </section>
+
+      <section id="front" class="view active-view">
+        <div class="front-layout">
+          <aside class="filter-panel">
+            <h2>客户筛选</h2>
+            <label>
+              国籍
+              <select id="nationalityFilter">
+                <option value="全部">全部</option>
+              </select>
+            </label>
+            <label>
+              工作经验
+              <select id="experienceFilter">
+                <option value="全部">全部</option>
+                <option value="2">2 年以上</option>
+                <option value="4">4 年以上</option>
+                <option value="6">6 年以上</option>
+              </select>
+            </label>
+            <label>
+              擅长
+              <select id="skillFilter">
+                <option value="全部">全部</option>
+              </select>
+            </label>
+          </aside>
+
+          <section>
+            <div class="section-head">
+              <div>
+                <p class="eyebrow">Customer Portal</p>
+                <h2>在线女佣档案</h2>
+              </div>
+              <span id="frontCount" class="status-pill"></span>
+            </div>
+            <div id="maidCards" class="maid-grid"></div>
+          </section>
+        </div>
+      </section>
+
+      <section id="admin" class="view">
+        <div class="admin-layout">
+          <aside class="sidebar">
+            <button class="active" data-admin-tab="dashboard">总览</button>
+            <button data-admin-tab="maids">女佣管理</button>
+            <button data-admin-tab="clients">客户管理</button>
+            <button data-admin-tab="process">雇佣流程</button>
+            <button data-admin-tab="documents">电子签名</button>
+            <div class="sidebar-downloads">
+              <h3>表格下载</h3>
+              <a href="assets/blank_biodata_template.pdf" download>空白 Biodata 模板</a>
+              <a href="assets/blank_quotation_template.pdf" download>空白 Quotation 报价单</a>
+              <a href="assets/blank_wp_application_template.pdf" download>Work Permit 申请资料</a>
+              <a href="assets/blank_service_agreement_template.pdf" download>Standard Service Agreement</a>
+              <a href="assets/blank_form_a_services_fees_template.pdf" download>Form A 服务费用表</a>
+              <a href="assets/blank_pdpa_statement_template.pdf" download>PDPA 声明</a>
+              <a href="assets/blank_insurance_proposal_template.pdf" download>保险 Proposal</a>
+              <a href="assets/blank_employment_contract_template.pdf" download>Employment Contract</a>
+              <a href="assets/blank_job_offer_template.pdf" download>Job Offer</a>
+              <a href="assets/blank_safety_agreement_template.pdf" download>Safety Agreement</a>
+              <a href="assets/blank_rest_day_agreement_template.pdf" download>Rest Day Agreement</a>
+            </div>
+          </aside>
+
+          <section class="admin-content">
+            <div id="dashboard" class="admin-tab active-admin-tab">
+              <div class="section-head">
+                <div>
+                  <p class="eyebrow">Agency Dashboard</p>
+                  <h2>后台总览</h2>
+                </div>
+              </div>
+              <div id="metrics" class="metric-grid"></div>
+              <div class="two-column">
+                <div>
+                  <h3>待跟进流程</h3>
+                  <div id="pendingTimeline" class="list-stack"></div>
+                </div>
+                <div>
+                  <h3>待签署文件</h3>
+                  <div id="pendingDocs" class="list-stack"></div>
+                </div>
+              </div>
+            </div>
+
+            <div id="maids" class="admin-tab">
+              <div class="section-head">
+                <div>
+                  <p class="eyebrow">Maid Records</p>
+                  <h2>女佣管理</h2>
+                </div>
+                <div class="action-row">
+                  <label class="upload-btn">
+                    上传 Biodata PDF
+                    <input id="maidPdfInput" type="file" accept="application/pdf" />
+                  </label>
+                  <button id="addMaidBtn" class="primary-btn">新增女佣</button>
+                </div>
+              </div>
+              <div id="importStatus" class="import-status"></div>
+              <div id="adminMaidList" class="table-list"></div>
+            </div>
+
+            <div id="clients" class="admin-tab">
+              <div class="section-head">
+                <div>
+                  <p class="eyebrow">Customer Records</p>
+                  <h2>客户管理</h2>
+                </div>
+                <button id="addClientBtn" class="primary-btn">新增客户</button>
+              </div>
+              <div id="clientList" class="table-list"></div>
+            </div>
+
+            <div id="process" class="admin-tab">
+              <div class="section-head">
+                <div>
+                  <p class="eyebrow">Employment Timeline</p>
+                  <h2>雇佣流程</h2>
+                </div>
+              </div>
+              <div class="selector-row">
+                <label>
+                  选择女佣
+                  <select id="timelineMaidSelect"></select>
+                </label>
+              </div>
+              <section class="sign-workbench">
+                <div class="sign-controls">
+                  <label>
+                    客户
+                    <select id="processClientSelect"></select>
+                  </label>
+                </div>
+              </section>
+              <div id="timelineList" class="timeline"></div>
+            </div>
+
+            <div id="documents" class="admin-tab">
+              <div class="section-head">
+                <div>
+                  <p class="eyebrow">E-Signature Center</p>
+                  <h2>电子签名文件</h2>
+                </div>
+                <button id="sendDocBtn" class="primary-btn">发送签署文件</button>
+              </div>
+              <div id="documentList" class="table-list"></div>
+            </div>
+          </section>
+        </div>
+      </section>
+    </main>
+
+    <dialog id="recordDialog">
+      <form method="dialog" id="recordForm">
+        <div class="dialog-head">
+          <h2 id="dialogTitle">新增</h2>
+          <button value="cancel" class="icon-btn" aria-label="关闭">×</button>
+        </div>
+        <div id="dialogFields" class="form-grid"></div>
+        <menu>
+          <button value="cancel" class="secondary-btn">取消</button>
+          <button id="dialogSubmit" value="default" class="primary-btn">保存</button>
+        </menu>
+      </form>
+    </dialog>
+
+    <script src="app.js"></script>
+  </body>
+</html>

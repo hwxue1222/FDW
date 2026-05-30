@@ -1,0 +1,6 @@
+_git/
+assets/upload-*.pdf
+assets/maid-*-candidate-*
+assets/maid-*-photo.*
+assets/wati-page*-image*
+!assets/wati-page1-image3.jpg
