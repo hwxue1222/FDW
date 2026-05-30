@@ -167,6 +167,7 @@ def build_overlay(master_pdf: Path):
     _checkbox(c, f"pdpa_opt_{i+1:02d}", x0 + 0.5, _rl_y(y1, page_h) + 0.5, size)
 
   name_labels = _find_label(spans, r"name of client")
+  org_labels = _find_label(spans, r"organization name")
   nric_labels = _find_label(spans, r"nric\/passport\/fin")
   sig_labels = _find_label(spans, r"signature")
 
@@ -179,6 +180,9 @@ def build_overlay(master_pdf: Path):
     yy = _rl_y(y, page_h) - height + 3
     _textfield(c, field_name, x0 + 2, yy, max(30.0, w - 4), height)
     return True
+
+  if org_labels:
+    place_field("organization_name", org_labels[0]["bbox"], 16)
 
   if name_labels:
     place_field("client_name", name_labels[0]["bbox"], 16)
