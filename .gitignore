@@ -6,3 +6,6 @@ assets/maid-*-candidate-*
 assets/maid-*-photo.*
 assets/wati-page*-image*
 !assets/wati-page1-image3.jpg
+
+maid_system/node_modules/
+maid_system/dist/
