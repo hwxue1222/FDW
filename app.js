@@ -419,11 +419,22 @@ const previewTitle = $("#previewTitle");
 const previewClose = $("#previewClose");
 const previewOpen = $("#previewOpen");
 
+function withCacheBust(url) {
+  if (!url) return url;
+  const parts = String(url).split("#");
+  const base = parts[0];
+  const hash = parts.length > 1 ? parts.slice(1).join("#") : "";
+  const sep = base.includes("?") ? "&" : "?";
+  const busted = `${base}${sep}v=${Date.now()}`;
+  return hash ? `${busted}#${hash}` : busted;
+}
+
 function openPdfPreview(url, title) {
   if (!previewDialog || !previewFrame) return;
+  const previewUrl = withCacheBust(url);
   if (previewTitle) previewTitle.textContent = title || "预览";
-  if (previewOpen) previewOpen.href = url || "#";
-  previewFrame.src = url;
+  if (previewOpen) previewOpen.href = previewUrl || "#";
+  previewFrame.src = previewUrl;
   previewDialog.showModal();
 }
 
