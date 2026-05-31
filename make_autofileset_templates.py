@@ -272,11 +272,19 @@ def make_pdpa():
             out.append(" ".join(cur))
         return out
 
-    def draw_paragraph(y: float, txt: str, indent: float = 0.0, size: int = 8, leading: float = 11.0):
+    def ensure_y(y: float, need: float = 0.0):
+        if y < MARGIN + need:
+            c.showPage()
+            title(c, "PERSONAL DATA PROTECTION STATEMENT (CONT.)", "")
+            return PAGE_H - 92
+        return y
+
+    def draw_paragraph(y: float, txt: str, indent: float = 0.0, size: int = 8, leading: float = 11.0, reserve_bottom: float = 0.0):
         c.setFillColor(INK)
         c.setFont("Helvetica", size)
         max_w = PAGE_W - MARGIN * 2 - indent
         for ln in wrap_text(txt, max_w, "Helvetica", size):
+            y = ensure_y(y, reserve_bottom)
             c.drawString(MARGIN + indent, y, ln)
             y -= leading
         return y
@@ -343,8 +351,11 @@ def make_pdpa():
     if current:
         paragraphs.append(" ".join(current).strip())
 
+    footer_reserve = 26 * 3 + 30
+
     for para in paragraphs:
         if para.startswith("__SECTION__"):
+            y = ensure_y(y, footer_reserve)
             y = section(c, y, para.replace("__SECTION__", ""))
             continue
 
@@ -353,16 +364,13 @@ def make_pdpa():
             rest = para[len(marker) :].strip()
             c.setFillColor(INK)
             c.setFont("Helvetica", 8)
+            y = ensure_y(y, footer_reserve)
             c.drawString(MARGIN, y, marker)
-            y = draw_paragraph(y, rest, indent=18.0, size=8, leading=11)
+            y = draw_paragraph(y, rest, indent=18.0, size=8, leading=11, reserve_bottom=footer_reserve)
         else:
-            y = draw_paragraph(y, para, indent=0.0, size=8, leading=11)
+            y = draw_paragraph(y, para, indent=0.0, size=8, leading=11, reserve_bottom=footer_reserve)
 
-        if y < MARGIN + 120:
-            c.showPage()
-            title(c, "PERSONAL DATA PROTECTION STATEMENT (CONT.)", "")
-            y = PAGE_H - 92
-
+    y = ensure_y(y, footer_reserve)
     y -= 10
     y = row(c, y, name_label, "client_name")
     y = row(c, y, nric_label, "client_id")
