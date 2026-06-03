@@ -36,6 +36,15 @@
           <aside class="filter-panel">
             <h2>客户筛选</h2>
             <label>
+              分类
+              <select id="categoryFilter">
+                <option value="全部">全部</option>
+                <option value="女佣">女佣</option>
+                <option value="建筑">建筑</option>
+                <option value="服务">服务</option>
+              </select>
+            </label>
+            <label>
               国籍
               <select id="nationalityFilter">
                 <option value="全部">全部</option>
@@ -61,11 +70,12 @@
           <section>
             <div class="section-head">
               <div>
-                <p class="eyebrow">Customer Portal</p>
-                <h2>在线女佣档案</h2>
+                <p class="eyebrow">Worker Portal</p>
+                <h2>工人资料库</h2>
               </div>
               <span id="frontCount" class="status-pill"></span>
             </div>
+            <div id="categorySummary" class="category-summary"></div>
             <div id="maidCards" class="maid-grid"></div>
           </section>
         </div>

@@ -352,6 +352,95 @@ const defaultMaidDetails = {
   biodataRemarks: ""
 };
 
+const categoryMeta = {
+  女佣: {
+    title: "女佣",
+    eyebrow: "Domestic Worker",
+    description: "家庭护理、家务、烹饪与儿童照护人员"
+  },
+  建筑: {
+    title: "建筑",
+    eyebrow: "Construction Worker",
+    description: "工地、装修、机电与现场技术人员"
+  },
+  服务: {
+    title: "服务",
+    eyebrow: "Service Worker",
+    description: "清洁、餐饮、酒店与日常运营服务人员"
+  }
+};
+
+const externalWorkers = [
+  {
+    id: "bw-2401",
+    category: "建筑",
+    refNo: "BW-2401",
+    name: "Rahman Hadi",
+    nationality: "Bangladesh",
+    age: 34,
+    salary: "S$1,600 - S$1,900",
+    experience: 6,
+    languages: "Basic English / Bengali",
+    offDay: "按项目安排",
+    role: "General Construction Worker",
+    skills: ["Formwork", "Rebar", "Site Safety"],
+    status: "可预约",
+    photoUrl: "",
+    summary: "6 年建筑现场经验，可配合工地日班与轮班。"
+  },
+  {
+    id: "bw-2402",
+    category: "建筑",
+    refNo: "BW-2402",
+    name: "Suresh Kumar",
+    nationality: "India",
+    age: 38,
+    salary: "S$1,800 - S$2,200",
+    experience: 9,
+    languages: "English / Tamil",
+    offDay: "按项目安排",
+    role: "Tiling and Finishing Worker",
+    skills: ["Tiling", "Plastering", "Waterproofing"],
+    status: "面试中",
+    photoUrl: "",
+    summary: "熟悉室内装修收尾、瓷砖铺设与墙面修补。"
+  },
+  {
+    id: "sw-2401",
+    category: "服务",
+    refNo: "SW-2401",
+    name: "Nilar Win",
+    nationality: "Myanmar",
+    age: 30,
+    salary: "S$1,400 - S$1,700",
+    experience: 4,
+    languages: "English / Burmese",
+    offDay: "每月 2-4 天",
+    role: "Cleaner",
+    skills: ["Office Cleaning", "Deep Cleaning", "Laundry"],
+    status: "可预约",
+    photoUrl: "",
+    summary: "4 年清洁服务经验，适合办公室、宿舍与商业空间。"
+  },
+  {
+    id: "sw-2402",
+    category: "服务",
+    refNo: "SW-2402",
+    name: "Ana Morales",
+    nationality: "Philippines",
+    age: 28,
+    salary: "S$1,700 - S$2,000",
+    experience: 5,
+    languages: "English / Tagalog",
+    offDay: "每月 4 天",
+    role: "F&B Service Crew",
+    skills: ["Customer Service", "Cashier", "Food Prep"],
+    status: "可预约",
+    photoUrl: "",
+    summary: "可做餐饮前台、备餐、收银与基础英文沟通。"
+  }
+];
+
 function normalizeState(savedState) {
   const data = savedState || seed;
   if (savedState) {
@@ -681,9 +770,23 @@ function timelineClass(status) {
   return "blocked";
 }
 
+function maidToWorker(maid) {
+  return {
+    ...maid,
+    category: "女佣",
+    role: "Domestic Worker",
+    salary: `S$${maid.salary}`
+  };
+}
+
+function allFrontWorkers() {
+  return [...state.maids.map(maidToWorker), ...externalWorkers];
+}
+
 function initFilters() {
-  const nationalities = [...new Set(state.maids.map((maid) => maid.nationality))];
-  const skills = [...new Set(state.maids.flatMap((maid) => maid.skills))];
+  const workers = allFrontWorkers();
+  const nationalities = [...new Set(workers.map((worker) => worker.nationality))];
+  const skills = [...new Set(workers.flatMap((worker) => worker.skills))];
   $("#nationalityFilter").innerHTML = `<option value="全部">全部</option>${nationalities
     .map((item) => `<option value="${item}">${item}</option>`)
     .join("")}`;
@@ -693,45 +796,97 @@ function initFilters() {
 }
 
 function renderFront() {
+  const category = $("#categoryFilter").value;
   const nationality = $("#nationalityFilter").value;
   const experience = $("#experienceFilter").value;
   const skill = $("#skillFilter").value;
-  const maids = state.maids.filter((maid) => {
-    const matchNationality = nationality === "全部" || maid.nationality === nationality;
-    const matchExperience = experience === "全部" || maid.experience >= Number(experience);
-    const matchSkill = skill === "全部" || maid.skills.includes(skill);
-    return matchNationality && matchExperience && matchSkill;
+  const workers = allFrontWorkers().filter((worker) => {
+    const matchCategory = category === "全部" || worker.category === category;
+    const matchNationality = nationality === "全部" || worker.nationality === nationality;
+    const matchExperience = experience === "全部" || worker.experience >= Number(experience);
+    const matchSkill = skill === "全部" || worker.skills.includes(skill);
+    return matchCategory && matchNationality && matchExperience && matchSkill;
   });
 
-  $("#frontCount").textContent = `${maids.length} 位可查看`;
-  $("#maidCards").innerHTML = maids
-    .map(
-      (maid) => `
-        <article class="maid-card">
-          ${
-            maid.photoUrl
-              ? `<img class="maid-photo" src="${maid.photoUrl}" alt="${maid.name}" />`
-              : `<div class="maid-photo">${maid.name.slice(0, 1)}</div>`
-          }
-          <div class="maid-body">
-            <div class="maid-title">
-              <h3>${maid.name}</h3>
-              <span class="tag ${maid.status === "面试中" ? "amber" : ""}">${maid.status}</span>
+  $("#frontCount").textContent = `${workers.length} 位可查看`;
+  $("#categorySummary").innerHTML = Object.entries(categoryMeta)
+    .map(([key, meta]) => {
+      const count = workers.filter((worker) => worker.category === key).length;
+      return `
+        <div class="category-card">
+          <span>${meta.eyebrow}</span>
+          <strong>${meta.title}</strong>
+          <em>${count} 位工人</em>
+        </div>
+      `;
+    })
+    .join("");
+
+  $("#maidCards").innerHTML = Object.entries(categoryMeta)
+    .map(([key, meta]) => {
+      const group = workers.filter((worker) => worker.category === key);
+      if (!group.length) {
+        return `
+          <section class="worker-section">
+            <div class="worker-section-head">
+              <div>
+                <p class="eyebrow">${meta.eyebrow}</p>
+                <h3>${meta.title}</h3>
+                <p>${meta.description}</p>
+              </div>
+              <span class="status-pill">0 位</span>
             </div>
-            <p>${maid.summary}</p>
-            <div class="info-grid">
-              <div><span>国籍</span><strong>${maid.nationality}</strong></div>
-              <div><span>年龄</span><strong>${maid.age} 岁</strong></div>
-              <div><span>经验</span><strong>${maid.experience} 年</strong></div>
-              <div><span>月薪</span><strong>S$${maid.salary}</strong></div>
-              <div><span>语言</span><strong>${maid.languages}</strong></div>
-              <div><span>休息日</span><strong>${maid.offDay}</strong></div>
+            <div class="empty-state">当前筛选下暂无${meta.title}工人。</div>
+          </section>
+        `;
+      }
+      return `
+        <section class="worker-section">
+          <div class="worker-section-head">
+            <div>
+              <p class="eyebrow">${meta.eyebrow}</p>
+              <h3>${meta.title}</h3>
+              <p>${meta.description}</p>
             </div>
-            <div class="skills">${maid.skills.map((item) => `<span class="tag blue">${item}</span>`).join("")}</div>
+            <span class="status-pill">${group.length} 位</span>
           </div>
-        </article>
-      `
-    )
+          <div class="worker-grid">
+            ${group
+              .map(
+                (worker) => `
+                  <article class="maid-card">
+                    ${
+                      worker.photoUrl
+                        ? `<img class="maid-photo" src="${worker.photoUrl}" alt="${worker.name}" />`
+                        : `<div class="maid-photo ${worker.category === "建筑" ? "building" : worker.category === "服务" ? "service" : ""}">${worker.name.slice(0, 1)}</div>`
+                    }
+                    <div class="maid-body">
+                      <div class="maid-title">
+                        <div>
+                          <h3>${worker.name}</h3>
+                          <span>${worker.refNo} · ${worker.role}</span>
+                        </div>
+                        <span class="tag ${worker.status === "面试中" ? "amber" : ""}">${worker.status}</span>
+                      </div>
+                      <p>${worker.summary}</p>
+                      <div class="info-grid">
+                        <div><span>分类</span><strong>${worker.category}</strong></div>
+                        <div><span>国籍</span><strong>${worker.nationality}</strong></div>
+                        <div><span>年龄</span><strong>${worker.age} 岁</strong></div>
+                        <div><span>经验</span><strong>${worker.experience} 年</strong></div>
+                        <div><span>薪资</span><strong>${worker.salary}</strong></div>
+                        <div><span>语言</span><strong>${worker.languages}</strong></div>
+                      </div>
+                      <div class="skills">${worker.skills.map((item) => `<span class="tag blue">${item}</span>`).join("")}</div>
+                    </div>
+                  </article>
+                `
+              )
+              .join("")}
+          </div>
+        </section>
+      `;
+    })
     .join("");
 }
 
@@ -1235,7 +1390,7 @@ function bindEvents() {
     });
   });
 
-  ["#nationalityFilter", "#experienceFilter", "#skillFilter"].forEach((selector) => {
+  ["#categoryFilter", "#nationalityFilter", "#experienceFilter", "#skillFilter"].forEach((selector) => {
     $(selector).addEventListener("change", renderFront);
   });
 
