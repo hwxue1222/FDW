@@ -386,6 +386,38 @@ textarea {
   gap: 8px;
 }
 
+.admin-category-switch {
+  display: grid;
+  gap: 8px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.admin-category-switch button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.admin-category-switch em {
+  display: inline-grid;
+  min-width: 24px;
+  height: 24px;
+  place-items: center;
+  border-radius: 999px;
+  background: #eaf5ef;
+  color: var(--green-dark);
+  font-size: 12px;
+  font-style: normal;
+}
+
+.sidebar-section-title {
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
 .sidebar button {
   width: 100%;
   padding: 12px 14px;
@@ -751,6 +783,17 @@ textarea {
   margin-top: 12px;
 }
 
+.stage-form-picker {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) auto;
+  gap: 10px;
+  align-items: end;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8fbf9;
+}
+
 .stage-dropzone {
   display: grid;
   place-items: center;
@@ -791,6 +834,22 @@ textarea {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--white);
+}
+
+.download-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+}
+
+.download-card {
+  display: grid;
+  gap: 14px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--white);
+  box-shadow: var(--shadow);
 }
 
 .timeline-main {
@@ -1060,7 +1119,8 @@ menu {
   }
 
   .table-row,
-  .stage-package {
+  .stage-package,
+  .stage-form-picker {
     grid-template-columns: 1fr;
   }
 

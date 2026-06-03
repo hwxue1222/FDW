@@ -441,6 +441,28 @@ const externalWorkers = [
   }
 ];
 
+const formTemplates = [
+  { title: "Biodata", url: "assets/blank_biodata_template.pdf", categories: ["女佣"] },
+  { title: "Quotation", url: "assets/blank_quotation_template.pdf", categories: ["女佣", "建筑", "服务"] },
+  { title: "Work Permit Application Form", url: "assets/work_permit_application_form.fillable.v10.pdf", categories: ["女佣", "建筑", "服务"] },
+  { title: "Standard Service Agreement", url: "assets/blank_service_agreement_template.pdf", categories: ["女佣", "建筑", "服务"] },
+  { title: "Tax Declaration Form", url: "assets/tax_declaration_form.fillable.v2.pdf", categories: ["女佣", "建筑", "服务"] },
+  { title: "Form A Service Fees", url: "assets/blank_form_a_services_fees_template.pdf", categories: ["女佣", "建筑", "服务"] },
+  { title: "PDPA Statement", url: "assets/blank_pdpa_statement_template.pdf", categories: ["女佣", "建筑", "服务"] },
+  { title: "Insurance Proposal", url: "assets/blank_insurance_proposal_template.pdf", categories: ["女佣"] },
+  { title: "Employment Contract", url: "assets/blank_employment_contract_template.pdf", categories: ["女佣", "建筑", "服务"] },
+  { title: "Job Offer", url: "assets/blank_job_offer_template.pdf", categories: ["建筑", "服务"] },
+  { title: "Safety Agreement", url: "assets/blank_safety_agreement_template.pdf", categories: ["建筑", "服务"] },
+  { title: "Rest Day Agreement", url: "assets/blank_rest_day_agreement_template.pdf", categories: ["女佣"] }
+];
+
+const defaultTimelineSteps = [
+  { step: "面试", date: "待定", status: "待处理", note: "等待客户预约" },
+  { step: "资料确认", date: "待定", status: "待处理", note: "等待文件填写和确认" },
+  { step: "签署合同", date: "待定", status: "待处理", note: "等待发送签署链接" },
+  { step: "上岗安排", date: "待定", status: "待处理", note: "等待签署完成" }
+];
+
 function normalizeState(savedState) {
   const data = savedState || seed;
   if (savedState) {
@@ -484,6 +506,10 @@ function normalizeState(savedState) {
       ]
   }));
   data.timeline = data.timeline || seed.timeline;
+  data.workers = (data.workers || externalWorkers).map((worker) => ({ ...worker, skills: worker.skills || [], status: worker.status || "可预约" }));
+  data.workers.forEach((worker) => {
+    data.timeline[worker.id] = data.timeline[worker.id] || defaultTimelineSteps.map((step) => ({ ...step }));
+  });
   data.documents = (data.documents || seed.documents).map((doc) => ({
     fileName: doc.name ? `${doc.name}.pdf` : "待签文件.pdf",
     fileType: "PDF",
@@ -498,6 +524,7 @@ function normalizeState(savedState) {
 
 const state = normalizeState(JSON.parse(localStorage.getItem("maidAgencyState")));
 let activeFrontCategory = "女佣";
+let activeAdminCategory = "女佣";
 let currentLanguage = localStorage.getItem("bybridgeLanguage") || "zh";
 
 const save = () => localStorage.setItem("maidAgencyState", JSON.stringify(state));
@@ -642,20 +669,33 @@ if (previewDialog) {
   });
 }
 
-const downloads = $(".sidebar-downloads");
-if (downloads) {
-  downloads.addEventListener("click", (event) => {
-    const target = event.target.closest(".download-preview");
-    if (!target) return;
-    const url = target.getAttribute("data-url") || "";
-    const title = target.getAttribute("data-title") || target.textContent || "预览";
-    if (!url) return;
-    openPdfPreview(url, title);
-  });
-}
+document.addEventListener("click", (event) => {
+  const target = event.target.closest(".download-preview");
+  if (!target) return;
+  const url = target.getAttribute("data-url") || "";
+  const title = target.getAttribute("data-title") || target.textContent || "预览";
+  if (!url) return;
+  openPdfPreview(url, title);
+});
 
 function maidById(id) {
   return state.maids.find((maid) => maid.id === id);
+}
+
+function adminWorkers() {
+  return [...state.maids.map(maidToWorker), ...state.workers];
+}
+
+function workersForCategory(category = activeAdminCategory) {
+  return adminWorkers().filter((worker) => worker.category === category);
+}
+
+function workerById(id) {
+  return adminWorkers().find((worker) => worker.id === id);
+}
+
+function workerName(id) {
+  return workerById(id)?.name || "未分配人员";
 }
 
 function clientById(id) {
@@ -674,6 +714,11 @@ function documentsForMaid(maidId) {
   return state.documents.filter((doc) => doc.maidId === maidId);
 }
 
+function documentsForCategory(category = activeAdminCategory) {
+  const workerIds = new Set(workersForCategory(category).map((worker) => worker.id));
+  return state.documents.filter((doc) => workerIds.has(doc.maidId));
+}
+
 function documentsForStage(maidId, stage) {
   return state.documents.filter((doc) => doc.maidId === maidId && doc.stage === stage);
 }
@@ -688,6 +733,13 @@ function currentSigningUrl(docId) {
 
 function firstClientForMaid(maidId) {
   return state.clients.find((client) => client.assignedMaidId === maidId || (client.hires || []).some((hire) => hire.maidId === maidId));
+}
+
+function clientsForCategory(category = activeAdminCategory) {
+  const workerIds = new Set(workersForCategory(category).map((worker) => worker.id));
+  return state.clients.filter(
+    (client) => (client.assignedMaidId && workerIds.has(client.assignedMaidId)) || (client.hires || []).some((hire) => workerIds.has(hire.maidId))
+  );
 }
 
 function timelineItemsForMaid(maidId) {
@@ -799,8 +851,8 @@ function fileRecord(file) {
 }
 
 function createSigningDocument(file, stageOverride) {
-  const maidId = $("#timelineMaidSelect").value || state.maids[0]?.id || "";
-  const clientId = $("#processClientSelect").value || firstClientForMaid(maidId)?.id || state.clients[0]?.id || "";
+  const maidId = $("#timelineMaidSelect").value || workersForCategory()[0]?.id || "";
+  const clientId = $("#processClientSelect").value || firstClientForMaid(maidId)?.id || "";
   const stage = stageOverride || "雇佣流程";
   const existingPackage = stagePackage(maidId, clientId, stage);
   const nextFile = fileRecord(file);
@@ -833,9 +885,9 @@ function createSigningDocument(file, stageOverride) {
     mergeFields: {
       clientName: clientById(clientId)?.name || "",
       clientPhone: clientById(clientId)?.phone || "",
-      maidName: maidById(maidId)?.name || "",
-      maidRefNo: maidById(maidId)?.refNo || "",
-      maidPassport: maidById(maidId)?.passportNo || ""
+      maidName: workerById(maidId)?.name || "",
+      maidRefNo: workerById(maidId)?.refNo || "",
+      maidPassport: workerById(maidId)?.passportNo || ""
     }
   };
   state.documents.unshift(doc);
@@ -843,6 +895,19 @@ function createSigningDocument(file, stageOverride) {
   save();
   renderAll();
   return doc;
+}
+
+function createSigningDocumentFromTemplate(templateTitle, stageOverride) {
+  const template = formTemplates.find((item) => item.title === templateTitle);
+  if (!template) return null;
+  return createSigningDocument(
+    {
+      name: `${template.title}.pdf`,
+      type: "application/pdf",
+      templateUrl: template.url
+    },
+    stageOverride
+  );
 }
 
 function addFilesToStage(files, stage) {
@@ -877,7 +942,7 @@ function maidToWorker(maid) {
 }
 
 function allFrontWorkers() {
-  return [...state.maids.map(maidToWorker), ...externalWorkers];
+  return [...state.maids.map(maidToWorker), ...state.workers];
 }
 
 function initFilters() {
@@ -981,7 +1046,31 @@ function renderFront() {
   `;
 }
 
+function renderAdminCategoryTabs() {
+  $("#adminCategoryTabs").innerHTML = Object.keys(categoryMeta)
+    .map((key) => {
+      const count = workersForCategory(key).length;
+      return `
+        <button class="${key === activeAdminCategory ? "active" : ""}" type="button" data-admin-category="${key}">
+          <span>${localized(categoryMeta[key].title)}</span>
+          <em>${count}</em>
+        </button>
+      `;
+    })
+    .join("");
+  const title = localized(categoryMeta[activeAdminCategory].title);
+  $("#personnelTitle").textContent = `${title} · 人员管理`;
+  $("#clientTitle").textContent = `${title} · 客户管理`;
+  $("#processTitle").textContent = `${title} · 雇佣流程`;
+  $("#documentTitle").textContent = `${title} · 签署文件`;
+  $("#downloadTitle").textContent = `${title} · 表格下载`;
+  $("#addMaidBtn").textContent = `新增${title}人员`;
+  const upload = $("#maidPdfInput")?.closest(".upload-btn");
+  if (upload) upload.style.display = activeAdminCategory === "女佣" ? "inline-flex" : "none";
+}
+
 function renderDashboard() {
+  if (!$("#metrics")) return;
   const signedDocs = state.documents.filter((doc) => doc.status === "已签署").length;
   const pendingDocs = state.documents.length - signedDocs;
   const activeProcesses = Object.values(state.timeline).flat().filter((item) => item.status !== "已完成").length;
@@ -1028,133 +1117,68 @@ function renderDashboard() {
     .join("");
 }
 
-function renderAdminMaids() {
-  $("#adminMaidList").innerHTML = state.maids
+function renderDownloads() {
+  const templates = formTemplates.filter((template) => template.categories.includes(activeAdminCategory));
+  $("#downloadList").innerHTML = templates
     .map(
-      (maid) => `
-        <article class="detail-card">
-          <div class="detail-head">
-            <div class="profile-title">
-              ${
-                maid.photoUrl
-                  ? `<img class="profile-avatar" src="${maid.photoUrl}" alt="${maid.name}" />`
-                  : `<div class="profile-avatar">${maid.name.slice(0, 1)}</div>`
-              }
-              <div>
-                <div class="row-title">${maid.name}</div>
-                <div class="row-sub">${maid.refNo} · ${maid.nationality} · ${maid.age} 岁 · ${maid.originCity}</div>
-              </div>
-            </div>
-            <span class="tag ${maid.status === "面试中" ? "amber" : ""}">${maid.status}</span>
+      (template) => `
+        <article class="download-card">
+          <div>
+            <div class="row-title">${template.title}</div>
+            <div class="row-sub">${localized(categoryMeta[activeAdminCategory].title)} · PDF Template</div>
           </div>
-          <div class="profile-grid">
-            <div><span>Ref No.</span><strong>${maid.refNo}</strong></div>
-            <div><span>护照</span><strong>${maid.passportNo}</strong></div>
-            <div><span>FIN / WP</span><strong>${maid.fin || "-"} / ${maid.wpNo || "-"}</strong></div>
-            <div><span>出生日期</span><strong>${maid.dateOfBirth}</strong></div>
-            <div><span>宗教</span><strong>${maid.religion}</strong></div>
-            <div><span>婚姻</span><strong>${maid.maritalStatus}</strong></div>
-            <div><span>学历</span><strong>${maid.education}</strong></div>
-            <div><span>身高 / 体重</span><strong>${maid.height || "-"}cm / ${maid.weight || "-"}kg</strong></div>
-            <div><span>经验国家</span><strong>${maid.workedCountries.join("、") || "待填写"}</strong></div>
-            <div><span>月薪 / 休息日</span><strong>S$${maid.salary} / ${maid.offDay}</strong></div>
-            <div><span>体检状态</span><strong>${maid.medicalStatus}</strong></div>
-            <div><span>语言</span><strong>${maid.languages}</strong></div>
-            <div><span>饮食 / 食材</span><strong>${maid.foodHandling}</strong></div>
-            <div><span>过敏 / 备注</span><strong>${maid.allergies}</strong></div>
+          <div class="row-actions">
+            <button type="button" class="mini-btn download-preview" data-url="${template.url}" data-title="${template.title}">预览</button>
+            <a class="mini-link" href="${template.url}" target="_blank" rel="noreferrer">下载</a>
           </div>
-          <div class="skills">${maid.duties.map((item) => `<span class="tag blue">${item}</span>`).join("")}</div>
-          <div class="biodata-sections">
-            <section class="history-block">
-              <h3>医疗 / 饮食 / 其他限制</h3>
-              <div class="profile-grid compact">
-                ${(maid.medicalHistory || [])
-                  .map((record) => `<div><span>${record.item}</span><strong>${record.status}</strong></div>`)
-                  .join("")}
-                <div><span>Food handling</span><strong>${maid.foodHandling}</strong></div>
-                <div><span>Allergies / Fear</span><strong>${maid.allergies}</strong></div>
-              </div>
-            </section>
-            <section class="history-block">
-              <h3>Skills of FDW</h3>
-              <div class="skill-table">
-                <div class="skill-row skill-head">
-                  <span>Area of Work</span>
-                  <span>Willing</span>
-                  <span>Exp.</span>
-                  <span>Years</span>
-                  <span>Rate</span>
-                  <span>Observation</span>
-                </div>
-                ${(maid.skillAssessment || [])
-                  .map(
-                    (skill) => `
-                      <div class="skill-row">
-                        <strong>${skill.area}</strong>
-                        <span>${skill.willingness}</span>
-                        <span>${skill.experience}</span>
-                        <span>${skill.years}</span>
-                        <span>${skill.rating}</span>
-                        <span>${skill.observation}</span>
-                      </div>
-                    `
-                  )
-                  .join("")}
-              </div>
-            </section>
-            <section class="history-block">
-              <h3>评估 / 面试方式</h3>
-              <div class="skills">
-                ${(maid.evaluationMethods || []).map((item) => `<span class="tag blue">${item}</span>`).join("")}
-                ${(maid.interviewAvailability || []).map((item) => `<span class="tag">${item}</span>`).join("")}
-              </div>
-              ${maid.biodataRemarks ? `<p class="record-note">${maid.biodataRemarks}</p>` : ""}
-            </section>
-          </div>
-          ${
-            maid.employmentHistory.length
-              ? `<div class="history-block">
-                  <h3>海外工作经历</h3>
-                  ${maid.employmentHistory
-                    .map(
-                      (job) => `
-                        <div class="history-row">
-                          <strong>${job.from} - ${job.to}</strong>
-                          <span>${job.country} · ${job.employer}</span>
-                          <span>${job.duties}</span>
-                        </div>
-                      `
-                    )
-                    .join("")}
-                </div>`
-              : ""
-          }
-          ${
-            maid.momHistory.length
-              ? `<div class="history-block">
-                  <h3>MOM 新加坡记录</h3>
-                  ${maid.momHistory
-                    .map(
-                      (job) => `
-                        <div class="history-row">
-                          <strong>${job.startDate} - ${job.endDate}</strong>
-                          <span>${job.employer}</span>
-                          <span>${job.industry}</span>
-                        </div>
-                      `
-                    )
-                    .join("")}
-                </div>`
-              : ""
-          }
         </article>
       `
     )
     .join("");
 }
 
+function renderAdminMaids() {
+  const workers = workersForCategory();
+  $("#adminMaidList").innerHTML = workers.length
+    ? workers
+    .map(
+      (worker) => `
+        <article class="detail-card">
+          <div class="detail-head">
+            <div class="profile-title">
+              ${
+                worker.photoUrl
+                  ? `<img class="profile-avatar" src="${worker.photoUrl}" alt="${worker.name}" />`
+                  : `<div class="profile-avatar">${worker.name.slice(0, 1)}</div>`
+              }
+              <div>
+                <div class="row-title">${worker.name}</div>
+                <div class="row-sub">${worker.refNo} · ${worker.role} · ${worker.nationality} · ${worker.age} 岁</div>
+              </div>
+            </div>
+            <span class="tag ${worker.status === "面试中" ? "amber" : ""}">${worker.status}</span>
+          </div>
+          <div class="profile-grid">
+            <div><span>分类</span><strong>${localized(categoryMeta[worker.category].title)}</strong></div>
+            <div><span>编号</span><strong>${worker.refNo}</strong></div>
+            <div><span>职位</span><strong>${worker.role}</strong></div>
+            <div><span>经验</span><strong>${worker.experience} 年</strong></div>
+            <div><span>薪资</span><strong>${worker.salary}</strong></div>
+            <div><span>语言</span><strong>${worker.languages}</strong></div>
+          </div>
+          <p class="record-note">${worker.summary || ""}</p>
+          <div class="skills">${(worker.skills || worker.duties || []).map((item) => `<span class="tag blue">${item}</span>`).join("")}</div>
+        </article>
+      `
+    )
+    .join("")
+    : `<div class="empty-state">当前分类还没有人员。</div>`;
+}
+
 function renderClients() {
-  $("#clientList").innerHTML = state.clients
+  const clients = clientsForCategory();
+  $("#clientList").innerHTML = clients.length
+    ? clients
     .map(
       (client) => {
         const payments = paymentsForClient(client);
@@ -1176,7 +1200,7 @@ function renderClients() {
                     <section class="hire-card">
                       <div class="hire-head">
                         <div>
-                          <strong>${maidById(hire.maidId)?.name || "未分配女佣"}</strong>
+                          <strong>${workerName(hire.maidId)}</strong>
                           <span>${hire.contractNo} · ${hire.status} · 顾问 ${hire.consultant}</span>
                         </div>
                         <span class="tag ${hire.status === "面试中" ? "amber" : ""}">预计上岗 ${hire.startDate}</span>
@@ -1204,26 +1228,35 @@ function renderClients() {
         `;
       }
     )
-    .join("");
+    .join("")
+    : `<div class="empty-state">当前分类还没有客户。</div>`;
 }
 
 function renderTimelineSelector() {
-  $("#timelineMaidSelect").innerHTML = state.maids
-    .map((maid) => `<option value="${maid.id}">${maid.name}</option>`)
+  $("#timelineMaidSelect").innerHTML = workersForCategory()
+    .map((worker) => `<option value="${worker.id}">${worker.name}</option>`)
     .join("");
 }
 
 function renderProcessSelectors() {
-  const maidId = $("#timelineMaidSelect").value || state.maids[0]?.id;
+  const maidId = $("#timelineMaidSelect").value || workersForCategory()[0]?.id;
   const linkedClient = firstClientForMaid(maidId);
-  $("#processClientSelect").innerHTML = state.clients
+  const clients = clientsForCategory();
+  $("#processClientSelect").innerHTML = clients
     .map((client) => `<option value="${client.id}" ${client.id === linkedClient?.id ? "selected" : ""}>${client.name}</option>`)
     .join("");
 }
 
 function renderTimeline() {
-  const maidId = $("#timelineMaidSelect").value || state.maids[0]?.id;
-  const items = state.timeline[maidId] || [];
+  const selected = $("#timelineMaidSelect").value;
+  const maidId = workersForCategory().some((worker) => worker.id === selected) ? selected : workersForCategory()[0]?.id;
+  if (!maidId) {
+    $("#timelineList").innerHTML = `<div class="empty-state">当前分类还没有可管理的人员。</div>`;
+    $("#processClientSelect").innerHTML = "";
+    return;
+  }
+  $("#timelineMaidSelect").value = maidId;
+  const items = timelineItemsForMaid(maidId);
   $("#timelineList").innerHTML = items
     .map(
       (item, index) => `
@@ -1246,6 +1279,10 @@ function renderTimeline() {
 
 function renderStageDocuments(maidId, stage) {
   const docs = documentsForStage(maidId, stage);
+  const templateOptions = formTemplates
+    .filter((template) => template.categories.includes(activeAdminCategory))
+    .map((template) => `<option value="${template.title}">${template.title}</option>`)
+    .join("");
   const docList =
     docs
       .map((doc) => {
@@ -1256,7 +1293,7 @@ function renderStageDocuments(maidId, stage) {
             <div>
               <div class="row-title">${doc.name}</div>
               <div class="row-sub">${clientById(doc.clientId)?.name || "未指定客户"} · ${files.length} 个文件 · 一个签署链接</div>
-              <div class="merge-preview">已自动带入：客户 ${clientById(doc.clientId)?.name || "-"} / 女佣 ${maidById(doc.maidId)?.name || "-"}</div>
+              <div class="merge-preview">已自动带入：客户 ${clientById(doc.clientId)?.name || "-"} / 人员 ${workerName(doc.maidId)}</div>
               <div class="file-chip-list">${files.map((file) => `<span class="file-chip">${file.fileName}</span>`).join("")}</div>
             </div>
             <span class="tag ${signed ? "" : "red"}">${doc.status}</span>
@@ -1268,10 +1305,19 @@ function renderStageDocuments(maidId, stage) {
       .join("");
   return `
     <div class="stage-documents">
+      <div class="stage-form-picker">
+        <label>
+          选择需要填写的文件
+          <select data-template-select="${stage}">
+            ${templateOptions}
+          </select>
+        </label>
+        <button class="primary-btn" type="button" data-send-template="${stage}">填写完毕，发送链接给客户签名</button>
+      </div>
       <label class="stage-dropzone" data-stage="${stage}">
         <input type="file" data-stage-input="${stage}" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" multiple />
-        <strong>拖入表格到“${stage}”</strong>
-        <span>可一次或多次加入多个文件，系统会整合成一个签署包</span>
+        <strong>也可以拖入已填写表格到“${stage}”</strong>
+        <span>系统会整合成一个签署包，并生成同一个客户签署链接</span>
       </label>
       ${docList || `<div class="empty-state">这个节点还没有签署文件。</div>`}
     </div>
@@ -1290,7 +1336,9 @@ function renderProcessDocuments() {
 }
 
 function renderDocuments() {
-  $("#documentList").innerHTML = state.documents
+  const docs = documentsForCategory();
+  $("#documentList").innerHTML = docs.length
+    ? docs
     .map((doc) => {
       const signed = doc.status === "已签署";
       return `
@@ -1299,7 +1347,7 @@ function renderDocuments() {
             <div class="row-title">${doc.name}</div>
             <div class="row-sub">${doc.stage} · 发送 ${doc.sentAt} · ${doc.fileName}</div>
           </div>
-          <div>${clientById(doc.clientId)?.name} / ${maidById(doc.maidId)?.name}</div>
+          <div>${clientById(doc.clientId)?.name || "未指定客户"} / ${workerName(doc.maidId)}</div>
           <div>
             <span class="tag ${signed ? "" : "red"}">${doc.status}</span>
             <span class="tag ${doc.copySent ? "" : "amber"}">${doc.copySent ? "副本已发送" : "等待副本"}</span>
@@ -1311,7 +1359,8 @@ function renderDocuments() {
         </div>
       `;
     })
-    .join("");
+    .join("")
+    : `<div class="empty-state">当前分类还没有已发送的签署文件。</div>`;
 }
 
 function renderSignaturePortal() {
@@ -1336,7 +1385,7 @@ function renderSignaturePortal() {
     return;
   }
   const client = clientById(doc.clientId);
-  const maid = maidById(doc.maidId);
+  const worker = workerById(doc.maidId);
   const signed = doc.status === "已签署";
   const files = doc.files || [{ fileName: doc.fileName, fileType: doc.fileType }];
   $("#signatureContent").innerHTML = `
@@ -1350,7 +1399,7 @@ function renderSignaturePortal() {
       </div>
       <div class="profile-grid">
         <div><span>客户</span><strong>${client?.name || "-"}</strong></div>
-        <div><span>女佣</span><strong>${maid?.name || "-"}</strong></div>
+        <div><span>人员</span><strong>${worker?.name || "-"}</strong></div>
         <div><span>发送日期</span><strong>${doc.sentAt}</strong></div>
         <div><span>签署日期</span><strong>${doc.signedAt || "待签署"}</strong></div>
       </div>
@@ -1358,7 +1407,7 @@ function renderSignaturePortal() {
         <h3>文件预览</h3>
         <p>这个签署链接包含 ${files.length} 个文件。正式系统会把这些文件合并为一份 PDF 签署包，并逐页要求客户签署。</p>
         <div class="file-chip-list">${files.map((file) => `<span class="file-chip">${file.fileName}</span>`).join("")}</div>
-        <div class="merge-preview">客户：${client?.name || "-"}　女佣：${maid?.name || "-"}　流程：${doc.stage}</div>
+        <div class="merge-preview">客户：${client?.name || "-"}　人员：${worker?.name || "-"}　流程：${doc.stage}</div>
       </div>
       ${
         signed
@@ -1400,6 +1449,7 @@ function renderAll() {
   renderLanguageLabels();
   initFilters();
   renderFront();
+  renderAdminCategoryTabs();
   renderDashboard();
   renderAdminMaids();
   renderClients();
@@ -1407,6 +1457,7 @@ function renderAll() {
   renderProcessSelectors();
   renderTimeline();
   renderDocuments();
+  renderDownloads();
   renderSignaturePortal();
 }
 
@@ -1471,6 +1522,20 @@ function bindEvents() {
       button.classList.add("active");
       $(`#${button.dataset.view}`).classList.add("active-view");
     });
+  });
+
+  $("#adminCategoryTabs").addEventListener("click", (event) => {
+    const button = event.target.closest("[data-admin-category]");
+    if (!button) return;
+    activeAdminCategory = button.dataset.adminCategory || "女佣";
+    renderAdminCategoryTabs();
+    renderAdminMaids();
+    renderClients();
+    renderTimelineSelector();
+    renderProcessSelectors();
+    renderTimeline();
+    renderDocuments();
+    renderDownloads();
   });
 
   $$(".sidebar button").forEach((button) => {
@@ -1582,6 +1647,40 @@ function bindEvents() {
   });
 
   $("#addMaidBtn").addEventListener("click", () => {
+    if (activeAdminCategory !== "女佣") {
+      const title = localized(categoryMeta[activeAdminCategory].title);
+      openDialog(
+        `新增${title}人员`,
+        [
+          { label: "Name", name: "name" },
+          { label: "Nationality", name: "nationality" },
+          { label: "Age", name: "age" },
+          { label: "Role", name: "role" },
+          { label: "Salary", name: "salary" },
+          { label: "Years of experience", name: "experience" },
+          { label: "Languages", name: "languages" },
+          { label: "Skills, comma-separated", name: "skills", full: true },
+          { label: "Summary", name: "summary", type: "textarea", full: true }
+        ],
+        (data) => {
+          const idPrefix = activeAdminCategory === "建筑" ? "bw" : "sw";
+          const id = `${idPrefix}${Date.now()}`;
+          state.workers.unshift({
+            ...data,
+            id,
+            category: activeAdminCategory,
+            refNo: `${activeAdminCategory === "建筑" ? "BW" : "SW"}-${String(Date.now()).slice(-4)}`,
+            age: Number(data.age),
+            experience: Number(data.experience),
+            skills: splitList(data.skills),
+            status: "可预约",
+            photoUrl: ""
+          });
+          state.timeline[id] = defaultTimelineSteps.map((step) => ({ ...step }));
+        }
+      );
+      return;
+    }
     openDialog(
       "新增女佣",
       [
@@ -1687,14 +1786,15 @@ function bindEvents() {
         { label: "预算", name: "budget" }
       ],
       (data) => {
+        const worker = workersForCategory()[0];
         state.clients.push({
           ...data,
           id: `c${Date.now()}`,
-          assignedMaidId: state.maids[0]?.id || "",
+          assignedMaidId: worker?.id || "",
           hires: [
             {
               id: `h${Date.now()}`,
-              maidId: state.maids[0]?.id || "",
+              maidId: worker?.id || "",
               contractNo: "待生成",
               startDate: "待定",
               status: "跟进中",
@@ -1719,12 +1819,13 @@ function bindEvents() {
         { label: "触发阶段", name: "stage" }
       ],
       (data) => {
-        const firstClient = state.clients[0];
+        const firstClient = clientsForCategory()[0] || state.clients[0];
+        const firstWorker = workersForCategory()[0];
         state.documents.push({
           ...data,
           id: `d${Date.now()}`,
           clientId: firstClient?.id || "",
-          maidId: firstClient?.assignedMaidId || state.maids[0]?.id || "",
+          maidId: firstClient?.assignedMaidId || firstWorker?.id || "",
           status: "待签署",
           sentAt: new Date().toISOString().slice(0, 10),
           signedAt: "",
@@ -1735,6 +1836,23 @@ function bindEvents() {
   });
 
   document.addEventListener("click", (event) => {
+    const sendTemplateButton = event.target.closest("[data-send-template]");
+    if (sendTemplateButton) {
+      const stage = sendTemplateButton.dataset.sendTemplate;
+      const select = document.querySelector(`[data-template-select="${stage}"]`);
+      if (!$("#processClientSelect").value) {
+        alert("请先在当前分类下新增或选择客户。");
+        return;
+      }
+      const doc = createSigningDocumentFromTemplate(select?.value, stage);
+      if (doc) {
+        alert(`签署链接已生成：${currentSigningUrl(doc.id)}`);
+      }
+      save();
+      renderAll();
+      return;
+    }
+
     const copyButton = event.target.closest("[data-copy-link]");
     if (copyButton) {
       const url = currentSigningUrl(copyButton.dataset.copyLink);
@@ -1758,6 +1876,11 @@ function bindEvents() {
   });
 
   window.addEventListener("hashchange", renderSignaturePortal);
+  window.addEventListener("storage", (event) => {
+    if (event.key !== "maidAgencyState" || !event.newValue) return;
+    Object.assign(state, normalizeState(JSON.parse(event.newValue)));
+    renderAll();
+  });
 }
 
 bindEvents();

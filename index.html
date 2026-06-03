@@ -76,61 +76,28 @@
       <section id="admin" class="view">
         <div class="admin-layout">
           <aside class="sidebar">
-            <button class="active" data-admin-tab="dashboard">总览</button>
-            <button data-admin-tab="maids">女佣管理</button>
+            <div class="admin-category-switch" id="adminCategoryTabs" aria-label="后台分类"></div>
+            <div class="sidebar-section-title">业务模块</div>
+            <button class="active" data-admin-tab="maids">人员管理</button>
             <button data-admin-tab="clients">客户管理</button>
             <button data-admin-tab="process">雇佣流程</button>
-            <button data-admin-tab="documents">电子签名</button>
-            <div class="sidebar-downloads">
-              <h3>Templates</h3>
-              <button type="button" class="download-preview" data-url="assets/blank_biodata_template.pdf" data-title="Biodata">Biodata</button>
-              <button type="button" class="download-preview" data-url="assets/blank_quotation_template.pdf" data-title="Quotation">Quotation</button>
-              <button type="button" class="download-preview" data-url="assets/work_permit_application_form.fillable.v10.pdf" data-title="Work Permit Application Form">Work Permit Application Form</button>
-              <button type="button" class="download-preview" data-url="assets/blank_service_agreement_template.pdf" data-title="Standard Service Agreement">Standard Service Agreement</button>
-              <button type="button" class="download-preview" data-url="assets/tax_declaration_form.fillable.v2.pdf" data-title="Tax Declaration Form">Tax Declaration Form</button>
-              <button type="button" class="download-preview" data-url="assets/blank_form_a_services_fees_template.pdf" data-title="Form A Service Fees">Form A Service Fees</button>
-              <button type="button" class="download-preview" data-url="assets/blank_pdpa_statement_template.pdf" data-title="PDPA Statement">PDPA Statement</button>
-              <button type="button" class="download-preview" data-url="assets/blank_insurance_proposal_template.pdf" data-title="Insurance Proposal">Insurance Proposal</button>
-              <button type="button" class="download-preview" data-url="assets/blank_employment_contract_template.pdf" data-title="Employment Contract">Employment Contract</button>
-              <button type="button" class="download-preview" data-url="assets/blank_job_offer_template.pdf" data-title="Job Offer">Job Offer</button>
-              <button type="button" class="download-preview" data-url="assets/blank_safety_agreement_template.pdf" data-title="Safety Agreement">Safety Agreement</button>
-              <button type="button" class="download-preview" data-url="assets/blank_rest_day_agreement_template.pdf" data-title="Rest Day Agreement">Rest Day Agreement</button>
-            </div>
+            <button data-admin-tab="documents">签署文件</button>
+            <button data-admin-tab="downloads">表格下载</button>
           </aside>
 
           <section class="admin-content">
-            <div id="dashboard" class="admin-tab active-admin-tab">
+            <div id="maids" class="admin-tab active-admin-tab">
               <div class="section-head">
                 <div>
-                  <p class="eyebrow">Agency Dashboard</p>
-                  <h2>后台总览</h2>
-                </div>
-              </div>
-              <div id="metrics" class="metric-grid"></div>
-              <div class="two-column">
-                <div>
-                  <h3>待跟进流程</h3>
-                  <div id="pendingTimeline" class="list-stack"></div>
-                </div>
-                <div>
-                  <h3>待签署文件</h3>
-                  <div id="pendingDocs" class="list-stack"></div>
-                </div>
-              </div>
-            </div>
-
-            <div id="maids" class="admin-tab">
-              <div class="section-head">
-                <div>
-                  <p class="eyebrow">Maid Records</p>
-                  <h2>女佣管理</h2>
+                  <p class="eyebrow" id="personnelEyebrow">Personnel Records</p>
+                  <h2 id="personnelTitle">人员管理</h2>
                 </div>
                 <div class="action-row">
                   <label class="upload-btn">
                     上传 Biodata PDF
                     <input id="maidPdfInput" type="file" accept="application/pdf" />
                   </label>
-                  <button id="addMaidBtn" class="primary-btn">新增女佣</button>
+                  <button id="addMaidBtn" class="primary-btn">新增人员</button>
                 </div>
               </div>
               <div id="importStatus" class="import-status"></div>
@@ -141,7 +108,7 @@
               <div class="section-head">
                 <div>
                   <p class="eyebrow">Customer Records</p>
-                  <h2>客户管理</h2>
+                  <h2 id="clientTitle">客户管理</h2>
                 </div>
                 <button id="addClientBtn" class="primary-btn">新增客户</button>
               </div>
@@ -152,12 +119,12 @@
               <div class="section-head">
                 <div>
                   <p class="eyebrow">Employment Timeline</p>
-                  <h2>雇佣流程</h2>
+                  <h2 id="processTitle">雇佣流程</h2>
                 </div>
               </div>
               <div class="selector-row">
                 <label>
-                  选择女佣
+                  选择人员
                   <select id="timelineMaidSelect"></select>
                 </label>
               </div>
@@ -175,12 +142,22 @@
             <div id="documents" class="admin-tab">
               <div class="section-head">
                 <div>
-                  <p class="eyebrow">E-Signature Center</p>
-                  <h2>电子签名文件</h2>
+                  <p class="eyebrow">Signature Files</p>
+                  <h2 id="documentTitle">签署文件</h2>
                 </div>
                 <button id="sendDocBtn" class="primary-btn">发送签署文件</button>
               </div>
               <div id="documentList" class="table-list"></div>
+            </div>
+
+            <div id="downloads" class="admin-tab">
+              <div class="section-head">
+                <div>
+                  <p class="eyebrow">Form Templates</p>
+                  <h2 id="downloadTitle">表格下载</h2>
+                </div>
+              </div>
+              <div id="downloadList" class="download-grid"></div>
             </div>
           </section>
         </div>
