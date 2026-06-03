@@ -1047,14 +1047,35 @@ function renderFront() {
 }
 
 function renderAdminCategoryTabs() {
+  const modules = [
+    { id: "maids", label: "人员管理" },
+    { id: "clients", label: "客户管理" },
+    { id: "process", label: "雇佣流程" },
+    { id: "documents", label: "签署文件" },
+    { id: "downloads", label: "表格下载" }
+  ];
+  const activeTab = document.querySelector(".admin-tab.active-admin-tab")?.id || "maids";
   $("#adminCategoryTabs").innerHTML = Object.keys(categoryMeta)
     .map((key) => {
       const count = workersForCategory(key).length;
       return `
-        <button class="${key === activeAdminCategory ? "active" : ""}" type="button" data-admin-category="${key}">
-          <span>${localized(categoryMeta[key].title)}</span>
-          <em>${count}</em>
-        </button>
+        <section class="admin-category-group">
+          <div class="admin-category-heading">
+            <span>${localized(categoryMeta[key].title)}</span>
+            <em>${count}</em>
+          </div>
+          <div class="admin-module-list">
+            ${modules
+              .map(
+                (module) => `
+                  <button class="${key === activeAdminCategory && module.id === activeTab ? "active" : ""}" type="button" data-admin-category="${key}" data-admin-tab="${module.id}">
+                    ${module.label}
+                  </button>
+                `
+              )
+              .join("")}
+          </div>
+        </section>
       `;
     })
     .join("");
@@ -1525,9 +1546,11 @@ function bindEvents() {
   });
 
   $("#adminCategoryTabs").addEventListener("click", (event) => {
-    const button = event.target.closest("[data-admin-category]");
+    const button = event.target.closest("[data-admin-category][data-admin-tab]");
     if (!button) return;
     activeAdminCategory = button.dataset.adminCategory || "女佣";
+    $$(".admin-tab").forEach((item) => item.classList.remove("active-admin-tab"));
+    $(`#${button.dataset.adminTab}`).classList.add("active-admin-tab");
     renderAdminCategoryTabs();
     renderAdminMaids();
     renderClients();
@@ -1536,15 +1559,6 @@ function bindEvents() {
     renderTimeline();
     renderDocuments();
     renderDownloads();
-  });
-
-  $$(".sidebar button").forEach((button) => {
-    button.addEventListener("click", () => {
-      $$(".sidebar button").forEach((item) => item.classList.remove("active"));
-      $$(".admin-tab").forEach((item) => item.classList.remove("active-admin-tab"));
-      button.classList.add("active");
-      $(`#${button.dataset.adminTab}`).classList.add("active-admin-tab");
-    });
   });
 
   $("#languageSwitch").addEventListener("click", (event) => {

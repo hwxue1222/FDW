@@ -388,18 +388,32 @@ textarea {
 
 .admin-category-switch {
   display: grid;
+  gap: 14px;
+}
+
+.admin-category-group {
+  display: grid;
   gap: 8px;
   padding-bottom: 14px;
   border-bottom: 1px solid var(--line);
 }
 
-.admin-category-switch button {
+.admin-category-group:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.admin-category-heading {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 10px;
+  color: var(--green-dark);
+  font-size: 14px;
+  font-weight: 800;
 }
 
-.admin-category-switch em {
+.admin-category-heading em {
   display: inline-grid;
   min-width: 24px;
   height: 24px;
@@ -411,11 +425,9 @@ textarea {
   font-style: normal;
 }
 
-.sidebar-section-title {
-  margin-top: 8px;
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 800;
+.admin-module-list {
+  display: grid;
+  gap: 6px;
 }
 
 .sidebar button {
