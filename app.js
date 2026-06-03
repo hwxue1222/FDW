@@ -1342,7 +1342,7 @@ function renderMaidDetail(maid) {
             <span>愿意</span>
             <span>经验</span>
             <span>年数</span>
-            <span>评分</span>
+            <span class="rating-head">评分 <small>1 Poor - 5 Excellent</small></span>
             <span>备注</span>
           </div>
           ${skillRows || `<div class="empty-state compact">暂无技能评估。</div>`}
