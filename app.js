@@ -638,9 +638,8 @@ function normalizeState(savedState) {
       ]
   }));
   data.clients = data.clients.filter((client) => client.assignedMaidId === "m4" || (client.hires || []).some((hire) => hire.maidId === "m4"));
-  if (!data.clients.length) {
-    data.clients = [{ ...watiClientSeed }];
-  }
+  const realClients = data.clients.filter((client) => client.id !== "c-wati" && client.name !== "Employer");
+  data.clients = realClients.length ? realClients : [];
   data.timeline = data.timeline || seed.timeline;
   data.timeline.m4 = (data.timeline.m4?.length ? data.timeline.m4 : maidEmploymentProcessSteps).map((item) => normalizeTimelineStage({ ...item }));
   data.timeline = { m4: data.timeline.m4 };
@@ -662,6 +661,16 @@ function normalizeState(savedState) {
     ...doc,
     stage: normalizeDocumentStage(doc.stage)
   })).filter((doc) => doc.maidId === "m4");
+  data.clients.forEach((client) => {
+    client.clientType = client.clientType || "new";
+    (client.hires || []).forEach((hire) => {
+      hire.payments = (hire.payments || []).map((payment, index) => ({
+        id: payment.id || `p${client.id}${hire.id}${index}`,
+        ...payment,
+        status: normalizePaymentStatus(payment.status)
+      }));
+    });
+  });
   data.workflowVersion = "wati-employment-process-v1";
   return data;
 }
@@ -1019,6 +1028,118 @@ function paymentsForClient(client) {
   return (client.hires || []).flatMap((hire) => hire.payments || []);
 }
 
+function defaultPaymentItems() {
+  return [
+    { id: `p${Date.now()}1`, stage: "Registration Fee", amount: 300, dueDate: new Date().toISOString().slice(0, 10), status: "not paid", paidDate: "" },
+    { id: `p${Date.now()}2`, stage: "Interview Confirmation Deposit", amount: 700, dueDate: "TBC", status: "not paid", paidDate: "" },
+    { id: `p${Date.now()}3`, stage: "Pre-Arrival Balance", amount: 1200, dueDate: "TBC", status: "not paid", paidDate: "" }
+  ];
+}
+
+function normalizePaymentStatus(status) {
+  if (status === "已付款" || status === "paid") return "paid";
+  return "not paid";
+}
+
+function isPaymentDue(payment) {
+  if (normalizePaymentStatus(payment.status) === "paid") return false;
+  if (!payment.dueDate || payment.dueDate === "TBC") return false;
+  return payment.dueDate <= new Date().toISOString().slice(0, 10);
+}
+
+function paymentDisplayStatus(payment) {
+  if (normalizePaymentStatus(payment.status) === "paid") {
+    return { label: uiLabel("Paid", "已付款"), className: "" };
+  }
+  return isPaymentDue(payment)
+    ? { label: uiLabel("Payment Due", "已到期"), className: "red" }
+    : { label: uiLabel("Not Due", "未到期"), className: "amber" };
+}
+
+function clientTypeLabel(type) {
+  return type === "transferred" ? "Transferred" : "New";
+}
+
+function findClientHirePayment(clientId, hireId, paymentId) {
+  const client = clientById(clientId);
+  const hire = (client?.hires || []).find((item) => item.id === hireId);
+  const payment = (hire?.payments || []).find((item) => item.id === paymentId);
+  return { client, hire, payment };
+}
+
+function createHireForClient(client, maidId) {
+  client.assignedMaidId = maidId;
+  client.hires = [
+    {
+      id: `h${Date.now()}`,
+      maidId,
+      contractNo: "To be generated",
+      startDate: "TBC",
+      status: "跟进中",
+      consultant: "To be assigned",
+      payments: defaultPaymentItems()
+    }
+  ];
+}
+
+function maidSelectOptions() {
+  return workersForCategory("女佣").map((worker) => ({ value: worker.id, label: worker.name }));
+}
+
+function openAssignMaidDialog(clientId) {
+  const client = clientById(clientId);
+  if (!client) return;
+  openDialog(
+    uiLabel("Select Maid", "选择女佣"),
+    [
+      { label: uiLabel("Client", "客户"), name: "clientName", value: client.name },
+      { label: uiLabel("Maid", "女佣"), name: "maidId", type: "select", options: maidSelectOptions(), value: client.assignedMaidId || "" }
+    ],
+    (data) => {
+      createHireForClient(client, data.maidId);
+    }
+  );
+}
+
+function openPaymentDialog(clientId, hireId, paymentId = "") {
+  const { hire, payment } = findClientHirePayment(clientId, hireId, paymentId);
+  if (!hire) return;
+  openDialog(
+    payment ? uiLabel("Edit Fee", "编辑收费") : uiLabel("Add Fee", "新增收费"),
+    [
+      { label: uiLabel("Fee Name", "收费名称"), name: "stage", value: payment?.stage || "" },
+      { label: uiLabel("Amount", "金额"), name: "amount", value: payment?.amount || "" },
+      { label: uiLabel("Due Date", "到期日"), name: "dueDate", value: payment?.dueDate || "TBC" },
+      {
+        label: uiLabel("Payment Status", "付款状态"),
+        name: "status",
+        type: "select",
+        value: normalizePaymentStatus(payment?.status),
+        options: [
+          { value: "not paid", label: uiLabel("Not Paid", "未付款") },
+          { value: "paid", label: uiLabel("Paid", "已付款") }
+        ]
+      }
+    ],
+    (data) => {
+      const nextPayment = {
+        id: payment?.id || `p${Date.now()}`,
+        stage: data.stage,
+        amount: Number(data.amount || 0),
+        dueDate: data.dueDate || "TBC",
+        status: normalizePaymentStatus(data.status),
+        paidDate: normalizePaymentStatus(data.status) === "paid" ? new Date().toISOString().slice(0, 10) : ""
+      };
+      if (payment) {
+        Object.assign(payment, nextPayment);
+      } else {
+        hire.payments = hire.payments || [];
+        hire.payments.push(nextPayment);
+      }
+    }
+  );
+}
+
 function documentsForMaid(maidId) {
   return state.documents.filter((doc) => doc.maidId === maidId);
 }
@@ -1045,6 +1166,7 @@ function firstClientForMaid(maidId) {
 }
 
 function clientsForCategory(category = activeAdminCategory) {
+  if (category === "女佣") return state.clients;
   const workerIds = new Set(workersForCategory(category).map((worker) => worker.id));
   return state.clients.filter(
     (client) => (client.assignedMaidId && workerIds.has(client.assignedMaidId)) || (client.hires || []).some((hire) => workerIds.has(hire.maidId))
@@ -2107,19 +2229,20 @@ function renderClients() {
     .map(
       (client) => {
         const payments = paymentsForClient(client);
-        const paid = payments.filter((payment) => payment.status === "已付款").reduce((sum, payment) => sum + Number(payment.amount), 0);
+        const paid = payments.filter((payment) => normalizePaymentStatus(payment.status) === "paid").reduce((sum, payment) => sum + Number(payment.amount), 0);
         const total = payments.reduce((sum, payment) => sum + Number(payment.amount), 0);
         return `
           <article class="detail-card">
             <div class="detail-head">
               <div>
-                <div class="row-title">${client.name}</div>
+                <div class="row-title">${client.name} <span class="tag blue">${clientTypeLabel(client.clientType)}</span></div>
                 <div class="row-sub">${client.phone} · ${uiLabel("Need", "需求")}：${client.need} · ${uiLabel("Budget", "预算")} S$${client.budget}</div>
               </div>
               <span class="tag blue">${uiLabel("Received", "已收")} ${formatMoney(paid)} / ${formatMoney(total)}</span>
             </div>
             <div class="hire-list">
-              ${(client.hires || [])
+              ${(client.hires || []).length
+                ? (client.hires || [])
                 .map(
                   (hire) => `
                     <section class="hire-card">
@@ -2128,26 +2251,38 @@ function renderClients() {
                           <strong>${workerName(hire.maidId)}</strong>
                           <span>${hire.contractNo} · ${statusLabel(hire.status)} · ${uiLabel("Consultant", "顾问")} ${hire.consultant}</span>
                         </div>
-                        <span class="tag ${hire.status === "面试中" ? "amber" : ""}">${uiLabel("Expected Start", "预计上岗")} ${hire.startDate}</span>
+                        <div class="row-actions">
+                          <span class="tag ${hire.status === "面试中" ? "amber" : ""}">${uiLabel("Expected Start", "预计上岗")} ${hire.startDate}</span>
+                          <button class="mini-btn" type="button" data-add-payment="${client.id}" data-hire-id="${hire.id}">${uiLabel("Add Fee", "新增收费")}</button>
+                        </div>
                       </div>
                       <div class="payment-table">
                         ${(hire.payments || [])
                           .map(
-                            (payment, index) => `
-                              <div class="payment-row">
+                            (payment, index) => {
+                              const displayStatus = paymentDisplayStatus(payment);
+                              return `
+                              <div class="payment-row client-payment-row">
                                 <span>${index + 1}. ${payment.stage}</span>
                                 <strong>${formatMoney(payment.amount)}</strong>
                                 <span>${payment.dueDate}</span>
-                                <span class="tag ${payment.status === "已付款" ? "" : payment.status === "待付款" ? "red" : "amber"}">${statusLabel(payment.status)}</span>
+                                <span class="tag ${displayStatus.className}">${displayStatus.label}</span>
+                                <div class="row-actions">
+                                  <button class="mini-btn" type="button" data-toggle-payment="${client.id}" data-hire-id="${hire.id}" data-payment-id="${payment.id}">${normalizePaymentStatus(payment.status) === "paid" ? uiLabel("Mark Not Paid", "标记未付款") : uiLabel("Mark Paid", "标记已付款")}</button>
+                                  <button class="mini-btn" type="button" data-edit-payment="${client.id}" data-hire-id="${hire.id}" data-payment-id="${payment.id}">${uiLabel("Edit", "编辑")}</button>
+                                  <button class="mini-btn" type="button" data-delete-payment="${client.id}" data-hire-id="${hire.id}" data-payment-id="${payment.id}">${uiLabel("Delete", "删除")}</button>
+                                </div>
                               </div>
-                            `
+                            `;
+                            }
                           )
                           .join("")}
                       </div>
                     </section>
                   `
                 )
-                .join("")}
+                .join("")
+                : `<div class="empty-state compact">${uiLabel("Select a maid to start fees.", "选择女佣后开始收费。")} <button class="mini-btn" type="button" data-assign-maid="${client.id}">${uiLabel("Select Maid", "选择女佣")}</button></div>`}
             </div>
           </article>
         `;
@@ -2457,6 +2592,22 @@ function openDialog(title, fields, onSubmit) {
                 : ""
             }
           </fieldset>
+        `;
+      }
+      if (field.type === "select") {
+        return `
+          <label class="${field.full ? "full" : ""}">
+            ${field.label}
+            <select name="${field.name}" ${field.required === false ? "" : "required"}>
+              ${(field.options || [])
+                .map((option) => {
+                  const value = typeof option === "string" ? option : option.value;
+                  const label = typeof option === "string" ? option : option.label;
+                  return `<option value="${value}" ${String(field.value || "") === String(value) ? "selected" : ""}>${label}</option>`;
+                })
+                .join("")}
+            </select>
+          </label>
         `;
       }
       const input =
@@ -2853,33 +3004,80 @@ function bindEvents() {
       [
         { label: uiLabel("Client Name", "客户姓名"), name: "name" },
         { label: uiLabel("Phone", "联系电话"), name: "phone" },
+        {
+          label: uiLabel("Client Type", "客户标签"),
+          name: "clientType",
+          type: "select",
+          options: [
+            { value: "new", label: "New" },
+            { value: "transferred", label: "Transferred" }
+          ]
+        },
         { label: uiLabel("Need", "需求"), name: "need" },
-        { label: uiLabel("Budget", "预算"), name: "budget" }
+        { label: uiLabel("Budget", "预算"), name: "budget" },
+        {
+          label: uiLabel("Select Maid to Start Fees", "选择女佣后开始收费"),
+          name: "maidId",
+          type: "select",
+          required: false,
+          options: [{ value: "", label: uiLabel("Not selected yet", "暂不选择") }, ...maidSelectOptions()]
+        }
       ],
       (data) => {
-        const worker = workersForCategory()[0];
-        state.clients.push({
+        const client = {
           ...data,
           id: `c${Date.now()}`,
-          assignedMaidId: worker?.id || "",
-          hires: [
-            {
-              id: `h${Date.now()}`,
-              maidId: worker?.id || "",
-              contractNo: "To be generated",
-              startDate: "TBC",
-              status: "跟进中",
-              consultant: "To be assigned",
-              payments: [
-                { stage: "Registration Fee", amount: 300, dueDate: "TBC", status: "待付款", paidDate: "" },
-                { stage: "Interview Confirmation Deposit", amount: 700, dueDate: "TBC", status: "未到期", paidDate: "" },
-                { stage: "Pre-Arrival Balance", amount: 1200, dueDate: "TBC", status: "未到期", paidDate: "" }
-              ]
-            }
-          ]
-        });
+          assignedMaidId: "",
+          hires: []
+        };
+        if (data.maidId) {
+          createHireForClient(client, data.maidId);
+        }
+        delete client.maidId;
+        state.clients.push(client);
       }
     );
+  });
+
+  document.addEventListener("click", (event) => {
+    const assignButton = event.target.closest("[data-assign-maid]");
+    if (assignButton) {
+      openAssignMaidDialog(assignButton.dataset.assignMaid);
+      return;
+    }
+
+    const addPaymentButton = event.target.closest("[data-add-payment]");
+    if (addPaymentButton) {
+      openPaymentDialog(addPaymentButton.dataset.addPayment, addPaymentButton.dataset.hireId);
+      return;
+    }
+
+    const editPaymentButton = event.target.closest("[data-edit-payment]");
+    if (editPaymentButton) {
+      openPaymentDialog(editPaymentButton.dataset.editPayment, editPaymentButton.dataset.hireId, editPaymentButton.dataset.paymentId);
+      return;
+    }
+
+    const togglePaymentButton = event.target.closest("[data-toggle-payment]");
+    if (togglePaymentButton) {
+      const { payment } = findClientHirePayment(togglePaymentButton.dataset.togglePayment, togglePaymentButton.dataset.hireId, togglePaymentButton.dataset.paymentId);
+      if (!payment) return;
+      const nextStatus = normalizePaymentStatus(payment.status) === "paid" ? "not paid" : "paid";
+      payment.status = nextStatus;
+      payment.paidDate = nextStatus === "paid" ? new Date().toISOString().slice(0, 10) : "";
+      save();
+      renderClients();
+      return;
+    }
+
+    const deletePaymentButton = event.target.closest("[data-delete-payment]");
+    if (deletePaymentButton) {
+      const { hire } = findClientHirePayment(deletePaymentButton.dataset.deletePayment, deletePaymentButton.dataset.hireId, deletePaymentButton.dataset.paymentId);
+      if (!hire) return;
+      hire.payments = (hire.payments || []).filter((payment) => payment.id !== deletePaymentButton.dataset.paymentId);
+      save();
+      renderClients();
+    }
   });
 
   $("#addUserBtn").addEventListener("click", () => {
