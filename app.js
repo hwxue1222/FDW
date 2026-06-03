@@ -684,6 +684,7 @@ let currentLanguage = localStorage.getItem("bybridgeLanguage") || "en";
 let currentSession = JSON.parse(localStorage.getItem("bybridgeAdminSession") || "null");
 let activeViewId = ["front", "admin"].includes(localStorage.getItem("bybridgeActiveView")) ? localStorage.getItem("bybridgeActiveView") : "front";
 let activeAdminTabId = localStorage.getItem("bybridgeAdminTab") || "maids";
+let adminAccountsCache = [];
 
 const save = () => localStorage.setItem("maidAgencyState", JSON.stringify(state));
 const $ = (selector) => document.querySelector(selector);
@@ -1848,7 +1849,6 @@ function renderAdminAuth() {
       <div class="account-panel">
         <button type="button" data-account-profile>${uiLabel("Profile", "个人资料")}</button>
         <button type="button" data-account-team>${uiLabel("Manage Team", "管理团队")}</button>
-        ${canManageAccounts() ? `<button type="button" data-account-add-user>${uiLabel("Add Back Office User", "增加后台使用者账号")}</button>` : ""}
         <button type="button" data-account-password>${uiLabel("Change Password", "修改密码")}</button>
         <button type="button" data-admin-logout>${uiLabel("Logout", "退出登录")}</button>
       </div>
@@ -2438,10 +2438,13 @@ async function renderUsers() {
   try {
     const data = await apiRequest("/api/accounts");
     const accounts = data.accounts || [];
+    adminAccountsCache = accounts;
     $("#userList").innerHTML = accounts
     .map(
-      (account) => `
-        <article class="detail-card user-card">
+      (account) => {
+        const editable = account.role !== "admin";
+        return `
+        <article class="detail-card user-card ${editable ? "clickable-card" : ""}" ${editable ? `data-edit-user="${account.id}"` : ""}>
           <div class="detail-head">
             <div>
               <div class="row-title">${account.name}</div>
@@ -2449,8 +2452,10 @@ async function renderUsers() {
             </div>
             <span class="tag ${account.status === "active" ? "" : "amber"}">${account.status === "active" ? uiLabel("Active", "启用") : uiLabel("Disabled", "停用")}</span>
           </div>
+          ${editable ? `<div class="row-sub">${uiLabel("Click to edit name, username or password.", "点击修改姓名、用户名或密码。")}</div>` : ""}
         </article>
-      `
+      `;
+      }
     )
     .join("");
   } catch (error) {
@@ -2613,7 +2618,7 @@ function openDialog(title, fields, onSubmit) {
       const input =
         field.type === "textarea"
           ? `<textarea name="${field.name}" rows="3" ${field.required === false ? "" : "required"}>${field.value || ""}</textarea>`
-          : `<input name="${field.name}" value="${field.value || ""}" ${field.required === false ? "" : "required"} />`;
+          : `<input type="${field.inputType || "text"}" name="${field.name}" value="${field.value || ""}" ${field.required === false ? "" : "required"} />`;
       return `<label class="${field.full ? "full" : ""}">${field.label}${input}</label>`;
     })
     .join("");
@@ -2656,6 +2661,38 @@ function openAddUserDialog() {
       await apiRequest("/api/accounts", {
         method: "POST",
         body: JSON.stringify({ name: data.name, username, password: data.password })
+      });
+    }
+  );
+}
+
+function openEditUserDialog(account) {
+  if (!canManageAccounts() || !account || account.role === "admin") return;
+  openDialog(
+    uiLabel("Edit Employee Account", "编辑员工账号"),
+    [
+      { label: uiLabel("Employee Name", "员工姓名"), name: "name", value: account.name || "" },
+      { label: uiLabel("Username", "用户名"), name: "username", value: account.username || "" },
+      {
+        label: uiLabel("New Password (leave blank to keep current)", "新密码（留空则不修改）"),
+        name: "password",
+        inputType: "password",
+        required: false
+      }
+    ],
+    async (data) => {
+      const username = String(data.username || "").trim();
+      if (!username) {
+        throw new Error(uiLabel("Username is required.", "用户名不能为空。"));
+      }
+      await apiRequest("/api/accounts", {
+        method: "PUT",
+        body: JSON.stringify({
+          id: account.id,
+          name: data.name,
+          username,
+          password: data.password
+        })
       });
     }
   );
@@ -2704,9 +2741,8 @@ function bindEvents() {
   document.addEventListener("click", (event) => {
     const profileButton = event.target.closest("[data-account-profile]");
     const teamButton = event.target.closest("[data-account-team]");
-    const addUserButton = event.target.closest("[data-account-add-user]");
     const passwordButton = event.target.closest("[data-account-password]");
-    if (!profileButton && !teamButton && !addUserButton && !passwordButton) return;
+    if (!profileButton && !teamButton && !passwordButton) return;
     $("#accountMenu details")?.removeAttribute("open");
     if (profileButton) {
       openProfileDialog();
@@ -2719,17 +2755,16 @@ function bindEvents() {
       renderUsers();
       return;
     }
-    if (addUserButton) {
-      activateView("admin");
-      activateAdminTab("users");
-      renderAdminCategoryTabs();
-      renderUsers();
-      openAddUserDialog();
-      return;
-    }
     if (passwordButton) {
       openChangePasswordDialog();
     }
+  });
+
+  document.addEventListener("click", (event) => {
+    const editUserCard = event.target.closest("[data-edit-user]");
+    if (!editUserCard) return;
+    const account = adminAccountsCache.find((item) => item.id === editUserCard.dataset.editUser);
+    openEditUserDialog(account);
   });
 
   $$(".mode-switch button").forEach((button) => {
