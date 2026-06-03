@@ -616,7 +616,6 @@ function normalizeState(savedState) {
     evaluationMethods: maid.evaluationMethods || seed.maids.find((item) => item.id === maid.id)?.evaluationMethods || [],
     interviewAvailability: maid.interviewAvailability || seed.maids.find((item) => item.id === maid.id)?.interviewAvailability || []
   }));
-  data.maids = data.maids.filter((maid) => maid.id === "m4" || maid.refNo === "BBC0189JW");
   data.clients = (data.clients || []).map((client) => ({
     ...client,
     hires:
@@ -834,7 +833,7 @@ function activateAdminTab(tabId, persist = true) {
 }
 
 async function apiRequest(path, options = {}) {
-  const apiPath = location.protocol === "file:" && path.startsWith("/") ? `https://fdw-one.vercel.app${path}` : path;
+  const apiPath = apiUrl(path);
   const response = await fetch(apiPath, {
     ...options,
     headers: {
@@ -852,6 +851,13 @@ async function apiRequest(path, options = {}) {
     throw new Error(data.message || data.error || "Request failed");
   }
   return data;
+}
+
+function apiUrl(path) {
+  const isStaticPreview =
+    location.protocol === "file:" ||
+    (["127.0.0.1", "localhost"].includes(location.hostname) && path === "/api/import-biodata");
+  return isStaticPreview && path.startsWith("/") ? `https://fdw-one.vercel.app${path}` : path;
 }
 
 function displayValue(value, fallback = "-") {
@@ -2878,12 +2884,13 @@ function bindEvents() {
     const formData = new FormData();
     formData.append("pdf", file);
     try {
-      const response = await fetch("/api/import-biodata", {
+      const response = await fetch(apiUrl("/api/import-biodata"), {
         method: "POST",
         body: formData
       });
       if (!response.ok) {
-        throw new Error("PDF 解析失败");
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || "PDF import failed");
       }
       const result = await response.json();
       const maid = normalizeImportedMaid(result.maid);
@@ -2894,17 +2901,13 @@ function bindEvents() {
       } else {
         state.maids.unshift(maid);
       }
-      state.timeline[maid.id] = state.timeline[maid.id] || [
-        { step: "Interview", date: "TBC", status: "待处理", note: "Waiting for customer appointment after PDF import" },
-        { step: "Training", date: "TBC", status: "待处理", note: "Waiting for interview confirmation" },
-        { step: "Arrival in Singapore", date: "TBC", status: "待处理", note: "Waiting for document confirmation" },
-        { step: "Medical Check", date: "TBC", status: "待处理", note: "Waiting for arrangement" }
-      ];
+      state.timeline[maid.id] = state.timeline[maid.id] || maidEmploymentProcessSteps.map((step) => ({ ...step }));
+      activeMaidDetailId = maid.id;
       save();
       renderAll();
       $("#importStatus").textContent = uiLabel(`Imported: ${maid.name}`, `已导入：${maid.name}`);
     } catch (error) {
-      $("#importStatus").textContent = uiLabel("Import failed: please confirm the page is opened with the new local preview service.", "导入失败：请确认使用新的本地预览服务打开页面。");
+      $("#importStatus").textContent = uiLabel(`Import failed: ${error.message}`, `导入失败：${error.message}`);
     } finally {
       event.target.value = "";
     }
