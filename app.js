@@ -1222,10 +1222,6 @@ function renderFrontFooter() {
         <p>Resume submissions and recruitment enquiries</p>
         <a href="mailto:Luke@bby.sg">Luke@bby.sg</a>
       </div>
-      <div class="footer-legal">
-        <p>jobsg.agency is managed by Bybridge Consultancy Pte Ltd. Company Registration No. 201523304N. EA License No. 15C7627.</p>
-        <p>Registered office: 8 Burn Road #15-03 Trivex Singapore 369977</p>
-      </div>
     </footer>
   `;
 }
