@@ -23,7 +23,7 @@ const seed = {
       repatriationAirport: "Soekarno Hatta",
       siblings: 4,
       workedCountries: ["Taiwan", "Hong Kong", "Singapore"],
-      offDay: "待确认",
+      offDay: "To be confirmed",
       medicalStatus: "No declared chronic illness",
       medicalHistory: [
         { item: "Mental illness", status: "No" },
@@ -42,7 +42,7 @@ const seed = {
       allergies: "Afraid of dogs",
       evaluationMethods: ["Interviewed via videoconference", "Interviewed by overseas training centre / EA: BB"],
       interviewAvailability: ["Can be interviewed by video-conference"],
-      skills: ["照顾儿童", "照顾老人", "家务", "烹饪", "普通话"],
+      skills: ["Child care", "Elderly care", "Housework", "Cooking", "Mandarin"],
       duties: ["Infant / child care", "Elderly care", "Disabled care", "General housework", "Simple Chinese food", "Mandarin and simple English"],
       skillAssessment: [
         {
@@ -130,87 +130,87 @@ const seed = {
       id: "m1",
       refNo: "DEMO-001",
       name: "Siti Aminah",
-      nationality: "印度尼西亚",
+      nationality: "Indonesian",
       age: 32,
       salary: 720,
       experience: 6,
-      languages: "英语 / 马来语",
+      languages: "English / Malay",
       dateOfBirth: "1994-03-12",
       passportNo: "A1234567",
-      religion: "穆斯林",
-      maritalStatus: "已婚，2 个孩子",
-      education: "高中",
+      religion: "Muslim",
+      maritalStatus: "Married, 2 children",
+      education: "High School",
       height: 158,
       weight: 54,
       originCity: "Surabaya",
-      workedCountries: ["新加坡", "马来西亚"],
-      offDay: "每月 2 天",
-      medicalStatus: "体检待安排",
-      skills: ["照顾老人", "烹饪", "家务"],
-      duties: ["老人护理", "轮椅协助", "中式简单餐", "日常清洁"],
+      workedCountries: ["Singapore", "Malaysia"],
+      offDay: "2 days per month",
+      medicalStatus: "Medical check pending arrangement",
+      skills: ["Elderly care", "Cooking", "Housework"],
+      duties: ["Elderly care", "Wheelchair assistance", "Simple Chinese meals", "Daily cleaning"],
       status: "可预约",
       photoUrl: "",
-      summary: "有新加坡与马来西亚家庭经验，擅长照顾行动不便老人。"
+      summary: "Has household experience in Singapore and Malaysia, suitable for elderly care and mobility support."
     },
     {
       id: "m2",
       refNo: "DEMO-002",
       name: "Maria Santos",
-      nationality: "菲律宾",
+      nationality: "Filipino",
       age: 29,
       salary: 780,
       experience: 5,
-      languages: "英语 / 他加禄语",
+      languages: "English / Tagalog",
       dateOfBirth: "1997-09-20",
       passportNo: "P7654321",
-      religion: "天主教",
-      maritalStatus: "单身",
-      education: "大专",
+      religion: "Catholic",
+      maritalStatus: "Single",
+      education: "College",
       height: 162,
       weight: 55,
       originCity: "Iloilo",
-      workedCountries: ["新加坡", "香港"],
-      offDay: "每月 4 天",
-      medicalStatus: "入境前体检通过",
-      skills: ["照顾儿童", "辅导作业", "烹饪"],
-      duties: ["幼儿照顾", "英语沟通", "接送上学", "西式简餐"],
+      workedCountries: ["Singapore", "Hong Kong"],
+      offDay: "4 days per month",
+      medicalStatus: "Pre-entry medical check passed",
+      skills: ["Child care", "Homework support", "Cooking"],
+      duties: ["Young child care", "English communication", "School pick-up", "Simple Western meals"],
       status: "面试中",
       photoUrl: "",
-      summary: "熟悉幼儿日常照护，沟通能力好，适合有儿童家庭。"
+      summary: "Familiar with young children's daily care and suitable for families with children."
     },
     {
       id: "m3",
       refNo: "DEMO-003",
       name: "Thandar Win",
-      nationality: "缅甸",
+      nationality: "Myanmar",
       age: 27,
       salary: 650,
       experience: 3,
-      languages: "英语 / 缅甸语",
+      languages: "English / Burmese",
       dateOfBirth: "1999-01-18",
       passportNo: "M9988123",
-      religion: "佛教",
-      maritalStatus: "单身",
-      education: "中学",
+      religion: "Buddhist",
+      maritalStatus: "Single",
+      education: "Secondary School",
       height: 155,
       weight: 49,
       originCity: "Yangon",
-      workedCountries: ["缅甸", "新加坡"],
-      offDay: "每月 2 天",
-      medicalStatus: "待体检",
-      skills: ["家务", "宠物照顾", "烹饪"],
-      duties: ["全屋清洁", "洗烫衣物", "宠物喂养", "简单烹饪"],
+      workedCountries: ["Myanmar", "Singapore"],
+      offDay: "2 days per month",
+      medicalStatus: "Medical check pending",
+      skills: ["Housework", "Pet care", "Cooking"],
+      duties: ["Whole-home cleaning", "Laundry and ironing", "Pet feeding", "Simple cooking"],
       status: "可预约",
       photoUrl: "",
-      summary: "做事细致，适合需要日常家务和简单餐食准备的家庭。"
+      summary: "Detail-oriented and suitable for daily housework and simple meal preparation."
     }
   ],
   clients: [
     {
       id: "c1",
-      name: "陈先生",
+      name: "Mr. Chen",
       phone: "+65 8123 4567",
-      need: "照顾老人",
+      need: "Elderly care",
       budget: "700-800",
       assignedMaidId: "m1",
       hires: [
@@ -222,10 +222,10 @@ const seed = {
           status: "培训中",
           consultant: "Kelly",
           payments: [
-            { stage: "报名费", amount: 300, dueDate: "2026-05-28", status: "已付款", paidDate: "2026-05-28" },
-            { stage: "面试确认金", amount: 700, dueDate: "2026-06-02", status: "已付款", paidDate: "2026-06-02" },
-            { stage: "入境前尾款", amount: 1200, dueDate: "2026-06-12", status: "待付款", paidDate: "" },
-            { stage: "上岗后结清", amount: 800, dueDate: "2026-06-20", status: "未到期", paidDate: "" }
+            { stage: "Registration Fee", amount: 300, dueDate: "2026-05-28", status: "已付款", paidDate: "2026-05-28" },
+            { stage: "Interview Confirmation Deposit", amount: 700, dueDate: "2026-06-02", status: "已付款", paidDate: "2026-06-02" },
+            { stage: "Pre-Arrival Balance", amount: 1200, dueDate: "2026-06-12", status: "待付款", paidDate: "" },
+            { stage: "Post-Deployment Settlement", amount: 800, dueDate: "2026-06-20", status: "未到期", paidDate: "" }
           ]
         }
       ]
@@ -234,7 +234,7 @@ const seed = {
       id: "c2",
       name: "Lim Family",
       phone: "+65 9234 5678",
-      need: "照顾儿童",
+      need: "Child care",
       budget: "750-850",
       assignedMaidId: "m2",
       hires: [
@@ -242,13 +242,13 @@ const seed = {
           id: "h2",
           maidId: "m2",
           contractNo: "EMP-2026-002",
-          startDate: "待定",
+          startDate: "TBC",
           status: "面试中",
           consultant: "Jason",
           payments: [
-            { stage: "报名费", amount: 300, dueDate: "2026-05-30", status: "已付款", paidDate: "2026-05-30" },
-            { stage: "面试确认金", amount: 700, dueDate: "2026-06-03", status: "待付款", paidDate: "" },
-            { stage: "准证申请费", amount: 600, dueDate: "待定", status: "未到期", paidDate: "" }
+            { stage: "Registration Fee", amount: 300, dueDate: "2026-05-30", status: "已付款", paidDate: "2026-05-30" },
+            { stage: "Interview Confirmation Deposit", amount: 700, dueDate: "2026-06-03", status: "待付款", paidDate: "" },
+            { stage: "Work Permit Application Fee", amount: 600, dueDate: "TBC", status: "未到期", paidDate: "" }
           ]
         }
       ]
@@ -256,20 +256,20 @@ const seed = {
   ],
   timeline: {
     m1: [
-      { step: "面试", date: "2026-06-02", status: "已完成", note: "客户已确认合适" },
-      { step: "培训", date: "2026-06-08", status: "进行中", note: "老人护理课程" },
-      { step: "登录新加坡", date: "2026-06-14", status: "待处理", note: "等待航班确认" },
-      { step: "体检", date: "2026-06-16", status: "待处理", note: "抵达后安排" },
-      { step: "上岗培训", date: "2026-06-18", status: "待处理", note: "家庭规则说明" },
-      { step: "定期体检", date: "2026-12-18", status: "待处理", note: "半年复查" }
+      { step: "Interview", date: "2026-06-02", status: "已完成", note: "Customer confirmed suitability" },
+      { step: "Training", date: "2026-06-08", status: "进行中", note: "Elderly care training" },
+      { step: "Arrival in Singapore", date: "2026-06-14", status: "待处理", note: "Waiting for flight confirmation" },
+      { step: "Medical Check", date: "2026-06-16", status: "待处理", note: "To arrange after arrival" },
+      { step: "Deployment Training", date: "2026-06-18", status: "待处理", note: "Household rules briefing" },
+      { step: "Periodic Medical Check", date: "2026-12-18", status: "待处理", note: "Six-month review" }
     ],
     m2: [
-      { step: "面试", date: "2026-06-01", status: "进行中", note: "客户第二轮面试" },
-      { step: "培训", date: "2026-06-10", status: "待处理", note: "儿童照护课程" },
-      { step: "登录新加坡", date: "2026-06-18", status: "待处理", note: "资料准备中" }
+      { step: "Interview", date: "2026-06-01", status: "进行中", note: "Customer second interview" },
+      { step: "Training", date: "2026-06-10", status: "待处理", note: "Child care training" },
+      { step: "Arrival in Singapore", date: "2026-06-18", status: "待处理", note: "Documents in preparation" }
     ],
     m3: [
-      { step: "面试", date: "2026-06-04", status: "待处理", note: "等待客户选择时间" }
+      { step: "Interview", date: "2026-06-04", status: "待处理", note: "Waiting for customer to choose a time" }
     ]
   },
   documents: [
@@ -277,29 +277,29 @@ const seed = {
       id: "d1",
       clientId: "c1",
       maidId: "m1",
-      name: "服务协议",
-      stage: "面试确认后",
+      name: "Service Agreement",
+      stage: "After Interview Confirmation",
       status: "已签署",
       sentAt: "2026-05-28",
       signedAt: "2026-05-29",
       copySent: true,
-      fileName: "服务协议.pdf",
+      fileName: "Service Agreement.pdf",
       fileType: "PDF",
       signingLink: "#sign=d1",
-      signedBy: "陈先生",
+      signedBy: "Mr. Chen",
       source: "template"
     },
     {
       id: "d2",
       clientId: "c1",
       maidId: "m1",
-      name: "雇佣合同",
-      stage: "登录新加坡前",
+      name: "Employment Contract",
+      stage: "Before Arrival in Singapore",
       status: "待签署",
       sentAt: "2026-05-30",
       signedAt: "",
       copySent: false,
-      fileName: "雇佣合同.pdf",
+      fileName: "Employment Contract.pdf",
       fileType: "PDF",
       signingLink: "#sign=d2",
       signedBy: "",
@@ -309,13 +309,13 @@ const seed = {
       id: "d3",
       clientId: "c2",
       maidId: "m2",
-      name: "面试确认书",
-      stage: "面试阶段",
+      name: "Interview Confirmation Form",
+      stage: "Interview Stage",
       status: "待签署",
       sentAt: "2026-05-30",
       signedAt: "",
       copySent: false,
-      fileName: "面试确认书.pdf",
+      fileName: "Interview Confirmation Form.pdf",
       fileType: "PDF",
       signingLink: "#sign=d3",
       signedBy: "",
@@ -325,22 +325,22 @@ const seed = {
 };
 
 const defaultMaidDetails = {
-  refNo: "待填写",
-  dateOfBirth: "待填写",
-  passportNo: "待填写",
+  refNo: "To be filled",
+  dateOfBirth: "To be filled",
+  passportNo: "To be filled",
   fin: "",
   wpNo: "",
-  religion: "待填写",
-  maritalStatus: "待填写",
-  education: "待填写",
+  religion: "To be filled",
+  maritalStatus: "To be filled",
+  education: "To be filled",
   height: "",
   weight: "",
-  originCity: "待填写",
+  originCity: "To be filled",
   workedCountries: [],
-  offDay: "待确认",
-  medicalStatus: "待体检",
-  foodHandling: "待填写",
-  allergies: "待填写",
+  offDay: "To be confirmed",
+  medicalStatus: "Medical check pending",
+  foodHandling: "To be filled",
+  allergies: "To be filled",
   evaluationMethods: [],
   interviewAvailability: [],
   duties: [],
@@ -388,12 +388,12 @@ const externalWorkers = [
     salary: "S$1,600 - S$1,900",
     experience: 6,
     languages: "Basic English / Bengali",
-    offDay: "按项目安排",
+    offDay: "According to project schedule",
     role: "General Construction Worker",
     skills: ["Formwork", "Rebar", "Site Safety"],
     status: "可预约",
     photoUrl: "",
-    summary: "6 年建筑现场经验，可配合工地日班与轮班。"
+    summary: "6 years of construction site experience, available for day shifts and rotating shifts."
   },
   {
     id: "bw-2402",
@@ -405,12 +405,12 @@ const externalWorkers = [
     salary: "S$1,800 - S$2,200",
     experience: 9,
     languages: "English / Tamil",
-    offDay: "按项目安排",
+    offDay: "According to project schedule",
     role: "Tiling and Finishing Worker",
     skills: ["Tiling", "Plastering", "Waterproofing"],
     status: "面试中",
     photoUrl: "",
-    summary: "熟悉室内装修收尾、瓷砖铺设与墙面修补。"
+    summary: "Experienced in interior finishing, tiling, and wall patching."
   },
   {
     id: "sw-2401",
@@ -422,12 +422,12 @@ const externalWorkers = [
     salary: "S$1,400 - S$1,700",
     experience: 4,
     languages: "English / Burmese",
-    offDay: "每月 2-4 天",
+    offDay: "2-4 days per month",
     role: "Cleaner",
     skills: ["Office Cleaning", "Deep Cleaning", "Laundry"],
     status: "可预约",
     photoUrl: "",
-    summary: "4 年清洁服务经验，适合办公室、宿舍与商业空间。"
+    summary: "4 years of cleaning service experience, suitable for offices, dormitories, and commercial spaces."
   },
   {
     id: "sw-2402",
@@ -439,12 +439,12 @@ const externalWorkers = [
     salary: "S$1,700 - S$2,000",
     experience: 5,
     languages: "English / Tagalog",
-    offDay: "每月 4 天",
+    offDay: "4 days per month",
     role: "F&B Service Crew",
     skills: ["Customer Service", "Cashier", "Food Prep"],
     status: "可预约",
     photoUrl: "",
-    summary: "可做餐饮前台、备餐、收银与基础英文沟通。"
+    summary: "Suitable for F&B counter service, food preparation, cashier duties, and basic English communication."
   }
 ];
 
@@ -464,10 +464,10 @@ const formTemplates = [
 ];
 
 const defaultTimelineSteps = [
-  { step: "面试", date: "待定", status: "待处理", note: "等待客户预约" },
-  { step: "资料确认", date: "待定", status: "待处理", note: "等待文件填写和确认" },
-  { step: "签署合同", date: "待定", status: "待处理", note: "等待发送签署链接" },
-  { step: "上岗安排", date: "待定", status: "待处理", note: "等待签署完成" }
+  { step: "Interview", date: "TBC", status: "待处理", note: "Waiting for customer appointment" },
+  { step: "Document Confirmation", date: "TBC", status: "待处理", note: "Waiting for documents to be filled and confirmed" },
+  { step: "Contract Signing", date: "TBC", status: "待处理", note: "Waiting to send signing link" },
+  { step: "Deployment Arrangement", date: "TBC", status: "待处理", note: "Waiting for signature completion" }
 ];
 
 function normalizeState(savedState) {
@@ -478,6 +478,23 @@ function normalizeState(savedState) {
         data.maids.push(seedMaid);
       }
     });
+    data.maids = (data.maids || []).map((maid) => {
+      const seedMaid = seed.maids.find((item) => item.id === maid.id);
+      return seedMaid ? { ...maid, ...seedMaid } : maid;
+    });
+    data.clients = (data.clients || []).map((client) => {
+      const seedClient = seed.clients.find((item) => item.id === client.id);
+      return seedClient ? { ...client, ...seedClient } : client;
+    });
+    data.timeline = { ...(data.timeline || {}) };
+    Object.entries(seed.timeline).forEach(([maidId, items]) => {
+      data.timeline[maidId] = items.map((item) => ({ ...item }));
+    });
+    const seededDocumentIds = new Set(seed.documents.map((doc) => doc.id));
+    data.documents = [
+      ...(data.documents || []).filter((doc) => !seededDocumentIds.has(doc.id)),
+      ...seed.documents.map((doc) => ({ ...doc }))
+    ];
   }
   data.maids = (data.maids || []).map((maid) => ({
     ...defaultMaidDetails,
@@ -500,27 +517,30 @@ function normalizeState(savedState) {
         {
           id: `h-${client.id}`,
           maidId: client.assignedMaidId,
-          contractNo: "待生成",
-          startDate: "待定",
+          contractNo: "To be generated",
+          startDate: "TBC",
           status: "跟进中",
-          consultant: "待分配",
+          consultant: "To be assigned",
           payments: [
-            { stage: "报名费", amount: 300, dueDate: "待定", status: "待付款", paidDate: "" },
-            { stage: "面试确认金", amount: 700, dueDate: "待定", status: "未到期", paidDate: "" },
-            { stage: "入境前尾款", amount: 1200, dueDate: "待定", status: "未到期", paidDate: "" }
+            { stage: "Registration Fee", amount: 300, dueDate: "TBC", status: "待付款", paidDate: "" },
+            { stage: "Interview Confirmation Deposit", amount: 700, dueDate: "TBC", status: "未到期", paidDate: "" },
+            { stage: "Pre-Arrival Balance", amount: 1200, dueDate: "TBC", status: "未到期", paidDate: "" }
           ]
         }
       ]
   }));
   data.timeline = data.timeline || seed.timeline;
-  data.workers = (data.workers || externalWorkers).map((worker) => ({ ...worker, skills: worker.skills || [], status: worker.status || "可预约" }));
+  data.workers = (data.workers || externalWorkers).map((worker) => {
+    const seedWorker = externalWorkers.find((item) => item.id === worker.id);
+    return { ...worker, ...(seedWorker || {}), skills: (seedWorker || worker).skills || [], status: (seedWorker || worker).status || "可预约" };
+  });
   data.workers.forEach((worker) => {
     data.timeline[worker.id] = data.timeline[worker.id] || defaultTimelineSteps.map((step) => ({ ...step }));
   });
   data.documents = (data.documents || seed.documents).map((doc) => ({
-    fileName: doc.name ? `${doc.name}.pdf` : "待签文件.pdf",
+    fileName: doc.name ? `${doc.name}.pdf` : "Pending Signing Document.pdf",
     fileType: "PDF",
-    files: doc.files || [{ fileName: doc.fileName || (doc.name ? `${doc.name}.pdf` : "待签文件.pdf"), fileType: doc.fileType || "PDF", uploadedAt: doc.sentAt || "" }],
+    files: doc.files || [{ fileName: doc.fileName || (doc.name ? `${doc.name}.pdf` : "Pending Signing Document.pdf"), fileType: doc.fileType || "PDF", uploadedAt: doc.sentAt || "" }],
     signingLink: `#sign=${doc.id}`,
     signedBy: "",
     source: "template",
@@ -760,7 +780,7 @@ function workerById(id) {
 }
 
 function workerName(id) {
-  return workerById(id)?.name || "未分配人员";
+  return workerById(id)?.name || uiLabel("Unassigned worker", "未分配人员");
 }
 
 function clientById(id) {
@@ -820,7 +840,7 @@ function markStepInProgress(maidId, stage) {
   const step = findTimelineStep(maidId, stage);
   if (!step || step.status === "已完成") return;
   step.status = "进行中";
-  step.note = step.note || "已上传待签文件";
+  step.note = step.note || "Signing document uploaded";
 }
 
 function completeStepAndOpenNext(maidId, stage) {
@@ -828,11 +848,11 @@ function completeStepAndOpenNext(maidId, stage) {
   const index = items.findIndex((item) => item.step === stage);
   if (index < 0) return;
   items[index].status = "已完成";
-  items[index].note = "客户已完成电子签署";
+  items[index].note = "Customer completed e-signature";
   const next = items[index + 1];
   if (next && next.status !== "已完成" && next.status !== "进行中") {
     next.status = "待处理";
-    next.note = next.note || "等待上传文件或开始处理";
+    next.note = next.note || "Waiting for file upload or processing";
   }
 }
 
@@ -850,7 +870,7 @@ function parsePairLines(value, fallbackKey = "item") {
     .filter(Boolean)
     .map((line) => {
       const [label, ...rest] = line.split(/[:：]/);
-      return { [fallbackKey]: label.trim(), status: rest.join(":").trim() || "待填写" };
+      return { [fallbackKey]: label.trim(), status: rest.join(":").trim() || "To be filled" };
     });
 }
 
@@ -909,7 +929,7 @@ function fileRecord(file) {
   const extension = file?.name?.split(".").pop()?.toUpperCase() || "FILE";
   return {
     id: `f${Date.now()}${Math.round(Math.random() * 1000)}`,
-    fileName: file?.name || "上传表格",
+    fileName: file?.name || "Uploaded Form",
     fileType: extension,
     uploadedAt: new Date().toISOString().slice(0, 10)
   };
@@ -918,13 +938,13 @@ function fileRecord(file) {
 function createSigningDocument(file, stageOverride) {
   const maidId = $("#timelineMaidSelect").value || workersForCategory()[0]?.id || "";
   const clientId = $("#processClientSelect").value || firstClientForMaid(maidId)?.id || "";
-  const stage = stageOverride || "雇佣流程";
+  const stage = stageOverride || "Employment Process";
   const existingPackage = stagePackage(maidId, clientId, stage);
   const nextFile = fileRecord(file);
   if (existingPackage) {
     existingPackage.files = [...(existingPackage.files || []), nextFile];
-    existingPackage.fileName = `${existingPackage.files.length} 个文件`;
-    existingPackage.name = `${stage}签署包`;
+    existingPackage.fileName = `${existingPackage.files.length} file(s)`;
+    existingPackage.name = `${stage} Signing Package`;
     existingPackage.sentAt = new Date().toISOString().slice(0, 10);
     save();
     renderAll();
@@ -935,14 +955,14 @@ function createSigningDocument(file, stageOverride) {
     id,
     clientId,
     maidId,
-    name: `${stage}签署包`,
+    name: `${stage} Signing Package`,
     stage,
     status: "待签署",
     sentAt: new Date().toISOString().slice(0, 10),
     signedAt: "",
     signedBy: "",
     copySent: false,
-    fileName: "1 个文件",
+    fileName: "1 file",
     fileType: "PACKAGE",
     files: [nextFile],
     signingLink: `#sign=${id}`,
@@ -981,7 +1001,7 @@ function addFilesToStage(files, stage) {
     doc = createSigningDocument(file, stage);
   });
   if (doc) {
-    alert(`已生成/更新签署包链接：${currentSigningUrl(doc.id)}`);
+    alert(uiLabel(`Signing package link generated/updated: ${currentSigningUrl(doc.id)}`, `已生成/更新签署包链接：${currentSigningUrl(doc.id)}`));
   }
 }
 
@@ -1165,11 +1185,11 @@ function renderDashboard() {
     .flatMap((client) => paymentsForClient(client))
     .filter((payment) => payment.status === "待付款").length;
   $("#metrics").innerHTML = [
-    ["女佣档案", state.maids.length],
-    ["客户数量", state.clients.length],
-    ["进行中流程", activeProcesses],
-    ["待签文件", pendingDocs],
-    ["待收款项", unpaidPayments]
+    [uiLabel("Maid Profiles", "女佣档案"), state.maids.length],
+    [uiLabel("Clients", "客户数量"), state.clients.length],
+    [uiLabel("Active Processes", "进行中流程"), activeProcesses],
+    [uiLabel("Pending Documents", "待签文件"), pendingDocs],
+    [uiLabel("Pending Payments", "待收款项"), unpaidPayments]
   ]
     .map(([label, value]) => `<div class="metric"><span>${label}</span><strong>${value}</strong></div>`)
     .join("");
@@ -1419,7 +1439,7 @@ function renderAdminMaids() {
   const workers = workersForCategory();
   if (activeAdminCategory === "女佣" && activeMaidDetailId) {
     const maid = maidById(activeMaidDetailId);
-    $("#adminMaidList").innerHTML = maid ? renderMaidDetail(maid) : `<div class="empty-state">没有找到这位女佣资料。</div>`;
+    $("#adminMaidList").innerHTML = maid ? renderMaidDetail(maid) : `<div class="empty-state">${uiLabel("This maid profile could not be found.", "没有找到这位女佣资料。")}</div>`;
     return;
   }
   $("#adminMaidList").innerHTML = workers.length
@@ -1890,7 +1910,7 @@ function bindEvents() {
   $("#maidPdfInput").addEventListener("change", async (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
-    $("#importStatus").textContent = "正在解析 PDF 并生成女佣档案...";
+    $("#importStatus").textContent = uiLabel("Parsing PDF and generating maid profile...", "正在解析 PDF 并生成女佣档案...");
     const formData = new FormData();
     formData.append("pdf", file);
     try {
@@ -1911,16 +1931,16 @@ function bindEvents() {
         state.maids.unshift(maid);
       }
       state.timeline[maid.id] = state.timeline[maid.id] || [
-        { step: "面试", date: "待定", status: "待处理", note: "PDF 导入后等待客户预约" },
-        { step: "培训", date: "待定", status: "待处理", note: "等待面试确认" },
-        { step: "登录新加坡", date: "待定", status: "待处理", note: "等待资料确认" },
-        { step: "体检", date: "待定", status: "待处理", note: "等待安排" }
+        { step: "Interview", date: "TBC", status: "待处理", note: "Waiting for customer appointment after PDF import" },
+        { step: "Training", date: "TBC", status: "待处理", note: "Waiting for interview confirmation" },
+        { step: "Arrival in Singapore", date: "TBC", status: "待处理", note: "Waiting for document confirmation" },
+        { step: "Medical Check", date: "TBC", status: "待处理", note: "Waiting for arrangement" }
       ];
       save();
       renderAll();
-      $("#importStatus").textContent = `已导入：${maid.name}`;
+      $("#importStatus").textContent = uiLabel(`Imported: ${maid.name}`, `已导入：${maid.name}`);
     } catch (error) {
-      $("#importStatus").textContent = "导入失败：请确认使用新的本地预览服务打开页面。";
+      $("#importStatus").textContent = uiLabel("Import failed: please confirm the page is opened with the new local preview service.", "导入失败：请确认使用新的本地预览服务打开页面。");
     } finally {
       event.target.value = "";
     }
@@ -2043,9 +2063,9 @@ function bindEvents() {
           status: "可预约"
         });
         state.timeline[id] = [
-          { step: "面试", date: "待定", status: "待处理", note: "等待客户预约" },
-          { step: "培训", date: "待定", status: "待处理", note: "等待前一步完成" },
-          { step: "登录新加坡", date: "待定", status: "待处理", note: "等待资料确认" }
+          { step: "Interview", date: "TBC", status: "待处理", note: "Waiting for customer appointment" },
+          { step: "Training", date: "TBC", status: "待处理", note: "Waiting for previous step completion" },
+          { step: "Arrival in Singapore", date: "TBC", status: "待处理", note: "Waiting for document confirmation" }
         ];
       }
     );
@@ -2070,14 +2090,14 @@ function bindEvents() {
             {
               id: `h${Date.now()}`,
               maidId: worker?.id || "",
-              contractNo: "待生成",
-              startDate: "待定",
+              contractNo: "To be generated",
+              startDate: "TBC",
               status: "跟进中",
-              consultant: "待分配",
+              consultant: "To be assigned",
               payments: [
-                { stage: "报名费", amount: 300, dueDate: "待定", status: "待付款", paidDate: "" },
-                { stage: "面试确认金", amount: 700, dueDate: "待定", status: "未到期", paidDate: "" },
-                { stage: "入境前尾款", amount: 1200, dueDate: "待定", status: "未到期", paidDate: "" }
+                { stage: "Registration Fee", amount: 300, dueDate: "TBC", status: "待付款", paidDate: "" },
+                { stage: "Interview Confirmation Deposit", amount: 700, dueDate: "TBC", status: "未到期", paidDate: "" },
+                { stage: "Pre-Arrival Balance", amount: 1200, dueDate: "TBC", status: "未到期", paidDate: "" }
               ]
             }
           ]
@@ -2116,12 +2136,12 @@ function bindEvents() {
       const stage = sendTemplateButton.dataset.sendTemplate;
       const select = document.querySelector(`[data-template-select="${stage}"]`);
       if (!$("#processClientSelect").value) {
-        alert("请先在当前分类下新增或选择客户。");
+        alert(uiLabel("Please add or select a client in the current category first.", "请先在当前分类下新增或选择客户。"));
         return;
       }
       const doc = createSigningDocumentFromTemplate(select?.value, stage);
       if (doc) {
-        alert(`签署链接已生成：${currentSigningUrl(doc.id)}`);
+        alert(uiLabel(`Signing link generated: ${currentSigningUrl(doc.id)}`, `签署链接已生成：${currentSigningUrl(doc.id)}`));
       }
       save();
       renderAll();
