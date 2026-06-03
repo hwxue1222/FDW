@@ -123,8 +123,7 @@ const seed = {
       ],
       status: "可预约",
       photoUrl: "assets/wati-page1-image3.jpg",
-      biodataRemarks: "FDW signed biodata on 13/02/25. Employer confirmation/signature section is included in original biodata.",
-      summary: "Ex-Hong Kong, Singapore and Taiwan. Experienced in household chores, elderly care, child care and simple Chinese cooking."
+      biodataRemarks: "FDW signed biodata on 13/02/25. Employer confirmation/signature section is included in original biodata."
     },
     {
       id: "m1",
@@ -149,8 +148,7 @@ const seed = {
       skills: ["Elderly care", "Cooking", "Housework"],
       duties: ["Elderly care", "Wheelchair assistance", "Simple Chinese meals", "Daily cleaning"],
       status: "可预约",
-      photoUrl: "",
-      summary: "Has household experience in Singapore and Malaysia, suitable for elderly care and mobility support."
+      photoUrl: ""
     },
     {
       id: "m2",
@@ -175,8 +173,7 @@ const seed = {
       skills: ["Child care", "Homework support", "Cooking"],
       duties: ["Young child care", "English communication", "School pick-up", "Simple Western meals"],
       status: "面试中",
-      photoUrl: "",
-      summary: "Familiar with young children's daily care and suitable for families with children."
+      photoUrl: ""
     },
     {
       id: "m3",
@@ -201,8 +198,7 @@ const seed = {
       skills: ["Housework", "Pet care", "Cooking"],
       duties: ["Whole-home cleaning", "Laundry and ironing", "Pet feeding", "Simple cooking"],
       status: "可预约",
-      photoUrl: "",
-      summary: "Detail-oriented and suitable for daily housework and simple meal preparation."
+      photoUrl: ""
     }
   ],
   clients: [
@@ -392,8 +388,7 @@ const externalWorkers = [
     role: "General Construction Worker",
     skills: ["Formwork", "Rebar", "Site Safety"],
     status: "可预约",
-    photoUrl: "",
-    summary: "6 years of construction site experience, available for day shifts and rotating shifts."
+    photoUrl: ""
   },
   {
     id: "bw-2402",
@@ -409,8 +404,7 @@ const externalWorkers = [
     role: "Tiling and Finishing Worker",
     skills: ["Tiling", "Plastering", "Waterproofing"],
     status: "面试中",
-    photoUrl: "",
-    summary: "Experienced in interior finishing, tiling, and wall patching."
+    photoUrl: ""
   },
   {
     id: "sw-2401",
@@ -426,8 +420,7 @@ const externalWorkers = [
     role: "Cleaner",
     skills: ["Office Cleaning", "Deep Cleaning", "Laundry"],
     status: "可预约",
-    photoUrl: "",
-    summary: "4 years of cleaning service experience, suitable for offices, dormitories, and commercial spaces."
+    photoUrl: ""
   },
   {
     id: "sw-2402",
@@ -443,8 +436,7 @@ const externalWorkers = [
     role: "F&B Service Crew",
     skills: ["Customer Service", "Cashier", "Food Prep"],
     status: "可预约",
-    photoUrl: "",
-    summary: "Suitable for F&B counter service, food preparation, cashier duties, and basic English communication."
+    photoUrl: ""
   }
 ];
 
@@ -1085,17 +1077,81 @@ function timelineClass(status) {
   return "blocked";
 }
 
+function sentenceList(items) {
+  const list = [...new Set((items || []).filter(Boolean).map((item) => String(item).trim()).filter(Boolean))];
+  if (!list.length) return "";
+  if (list.length === 1) return list[0];
+  if (list.length === 2) return `${list[0]} and ${list[1]}`;
+  return `${list.slice(0, -1).join(", ")} and ${list.at(-1)}`;
+}
+
+function cleanCapabilityLabel(value) {
+  const label = String(value || "").trim();
+  const map = {
+    "Care of Infants / children": "infant / child care",
+    "Infant / child care": "infant / child care",
+    "Care of elderly": "elderly care",
+    "Elderly care": "elderly care",
+    "Care of disabled": "disabled care",
+    "Disabled care": "disabled care",
+    "General housework": "general housework",
+    Cooking: "cooking",
+    "Language abilities": "language abilities",
+    "Simple Chinese food": "simple Chinese food",
+    "Mandarin and simple English": "Mandarin and simple English"
+  };
+  return map[label] || label;
+}
+
+function workerCapabilities(worker) {
+  const assessed = (worker.skillAssessment || [])
+    .filter((item) => ["yes", "y"].includes(String(item.experience || "").toLowerCase()) || ["yes", "y"].includes(String(item.willingness || "").toLowerCase()))
+    .map((item) => cleanCapabilityLabel(item.area));
+  return (assessed.length ? assessed : worker.duties || worker.skills || [])
+    .map(cleanCapabilityLabel)
+    .filter((item) => item && !["language abilities"].includes(item.toLowerCase()))
+    .slice(0, 4);
+}
+
+function generateWorkerSummary(worker) {
+  const parts = [];
+  const countries = sentenceList(worker.workedCountries || []);
+  const capabilities = sentenceList(workerCapabilities(worker));
+  const years = Number(worker.experience || 0);
+
+  if (countries) {
+    parts.push(`Ex-${countries}.`);
+  } else if (years) {
+    parts.push(`${years} ${years === 1 ? "year" : "years"} of ${worker.role || "work"} experience.`);
+  }
+
+  if (capabilities) {
+    parts.push(`Experienced in ${capabilities}.`);
+  } else if (worker.languages) {
+    parts.push(`Can communicate in ${worker.languages}.`);
+  }
+
+  return parts.join(" ") || `${worker.role || localized(categoryMeta[worker.category]?.title) || "Worker"} profile available for review.`;
+}
+
 function maidToWorker(maid) {
   return {
     ...maid,
     category: "女佣",
     role: "Domestic Worker",
-    salary: `S$${maid.salary}`
+    salary: `S$${maid.salary}`,
+    summary: generateWorkerSummary({ ...maid, category: "女佣", role: "Domestic Worker" })
   };
 }
 
 function allFrontWorkers() {
-  return [...state.maids.map(maidToWorker), ...state.workers];
+  return [
+    ...state.maids.map(maidToWorker),
+    ...state.workers.map((worker) => ({
+      ...worker,
+      summary: generateWorkerSummary(worker)
+    }))
+  ];
 }
 
 function initFilters() {
@@ -1726,6 +1782,7 @@ function renderAdminMaids() {
         const title = activeAdminCategory === "女佣"
           ? `<button class="text-link row-title" type="button" data-open-maid-detail="${worker.id}">${worker.name}</button>`
           : `<div class="row-title">${worker.name}</div>`;
+        const summary = generateWorkerSummary(worker);
         return `
         <article class="detail-card">
           <div class="detail-head">
@@ -1750,7 +1807,7 @@ function renderAdminMaids() {
             <div><span>${uiLabel("Salary", "薪资")}</span><strong>${worker.salary}</strong></div>
             <div><span>${uiLabel("Languages", "语言")}</span><strong>${worker.languages}</strong></div>
           </div>
-          <p class="record-note">${worker.summary || ""}</p>
+          <p class="record-note">${summary}</p>
           <div class="skills">${(worker.skills || worker.duties || []).map((item) => `<span class="tag blue">${item}</span>`).join("")}</div>
         </article>
       `;
@@ -2325,8 +2382,7 @@ function bindEvents() {
           { label: "Salary", name: "salary" },
           { label: "Years of experience", name: "experience" },
           { label: "Languages", name: "languages" },
-          { label: "Skills, comma-separated", name: "skills", full: true },
-          { label: "Summary", name: "summary", type: "textarea", full: true }
+          { label: "Skills, comma-separated", name: "skills", full: true }
         ],
         (data) => {
           const idPrefix = activeAdminCategory === "建筑" ? "bw" : "sw";
@@ -2403,8 +2459,7 @@ function bindEvents() {
         },
         { label: uiLabel("Overseas Employment History, one per line: From | To | Country | Employer | Duties", "海外工作经历，每行格式：From | To | Country | Employer | Duties"), name: "employmentHistory", type: "textarea", full: true },
         { label: uiLabel("Biodata Remarks", "Biodata 备注"), name: "biodataRemarks", type: "textarea", full: true },
-        { label: uiLabel("Skills, comma-separated", "技能，用逗号分隔"), name: "skills", full: true },
-        { label: uiLabel("Summary", "简介"), name: "summary", type: "textarea", full: true }
+        { label: uiLabel("Skills, comma-separated", "技能，用逗号分隔"), name: "skills", full: true }
       ],
       (data) => {
         const id = `m${Date.now()}`;
