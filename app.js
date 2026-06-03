@@ -1187,23 +1187,44 @@ function renderFront() {
 function renderFrontFooter() {
   return `
     <footer class="front-footer">
-      <div>
-        <p class="footer-site">jobsg.agency</p>
-        <p>Managed by <strong>Bybridge Consultancy Pte Ltd</strong></p>
+      <div class="footer-main">
+        <div class="footer-col">
+          <h3>Site Map</h3>
+          <a href="mailto:Luke@bby.sg">Contact Us</a>
+          <a href="#front">Jobs in Singapore</a>
+          <a href="#front">Hiring in Singapore</a>
+          <a href="#front">Career Consulting</a>
+        </div>
+        <div class="footer-col">
+          <h3>Help</h3>
+          <a href="#front">Terms of Use</a>
+          <a href="#front">Privacy Policy</a>
+          <a href="#front">Email Disclaimer</a>
+        </div>
+        <div class="footer-col footer-locations">
+          <h3>Bybridge Locations</h3>
+          <div>
+            <span>Singapore</span>
+            <span>Malaysia</span>
+            <span>Indonesia</span>
+            <span>Thailand</span>
+            <span>Vietnam</span>
+            <span>India</span>
+          </div>
+        </div>
       </div>
-      <div class="footer-grid">
-        <div>
-          <span>Company UEN</span>
-          <strong>201523304N</strong>
-        </div>
-        <div>
-          <span>Resume submissions and recruitment enquiries</span>
-          <a href="mailto:Luke@bby.sg">Luke@bby.sg</a>
-        </div>
-        <div>
-          <span>Company Address</span>
-          <strong>8 Burn Road #15-03 Trivex Singapore 369977</strong>
-        </div>
+      <div class="footer-contact">
+        <h3>Contact Us</h3>
+        <strong>Bybridge Consultancy Pte Ltd</strong>
+        <p>8 Burn Road #15-03 Trivex Singapore 369977</p>
+        <p>UEN: 201523304N</p>
+        <p>EA License No. 15C7627</p>
+        <p>Resume submissions and recruitment enquiries</p>
+        <a href="mailto:Luke@bby.sg">Luke@bby.sg</a>
+      </div>
+      <div class="footer-legal">
+        <p>jobsg.agency is managed by Bybridge Consultancy Pte Ltd. Company Registration No. 201523304N. EA License No. 15C7627.</p>
+        <p>Registered office: 8 Burn Road #15-03 Trivex Singapore 369977</p>
       </div>
     </footer>
   `;

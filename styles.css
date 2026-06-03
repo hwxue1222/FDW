@@ -349,48 +349,82 @@ textarea {
 
 .front-footer {
   display: grid;
-  gap: 16px;
+  grid-template-columns: 1fr 420px;
+  gap: 0;
   margin-top: 8px;
-  padding: 18px;
   border: 1px solid var(--line);
   border-radius: 8px;
+  overflow: hidden;
   background: var(--white);
 }
 
+.front-footer h3,
 .front-footer p {
+  margin: 0;
+}
+
+.front-footer h3 {
+  color: #009fda;
+  font-size: 16px;
+}
+
+.front-footer p,
+.front-footer a,
+.front-footer span {
   margin: 0;
   color: var(--muted);
   font-size: 13px;
+  line-height: 1.6;
 }
 
-.front-footer .footer-site {
-  margin-bottom: 4px;
-  color: var(--ink);
-  font-size: 18px;
-  font-weight: 800;
-}
-
-.footer-grid {
-  display: grid;
-  grid-template-columns: 180px 1fr 1.1fr;
-  gap: 14px;
-}
-
-.footer-grid span {
-  display: block;
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.footer-grid strong,
-.footer-grid a {
-  display: block;
-  margin-top: 4px;
-  color: var(--ink);
-  font-size: 14px;
-  font-weight: 800;
+.front-footer a {
   text-decoration: none;
+}
+
+.footer-main {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1.4fr;
+  gap: 44px;
+  padding: 24px;
+}
+
+.footer-col {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+}
+
+.footer-locations div {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 3px 24px;
+}
+
+.footer-contact {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  padding: 24px 28px;
+  background: #f3f5f4;
+}
+
+.footer-contact strong {
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.footer-contact a {
+  color: #e46f2b;
+  font-weight: 800;
+}
+
+.footer-legal {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 6px;
+  padding: 18px 24px 22px;
+  border-top: 1px solid var(--line);
 }
 
 .maid-card,
@@ -1439,9 +1473,17 @@ menu {
   .two-column,
   .worker-grid,
   .metric-grid,
-  .footer-grid,
   .sign-controls {
     grid-template-columns: 1fr;
+  }
+
+  .front-footer,
+  .footer-main {
+    grid-template-columns: 1fr;
+  }
+
+  .footer-main {
+    gap: 18px;
   }
 
   .evaluation-grid {
