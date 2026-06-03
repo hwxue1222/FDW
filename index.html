@@ -11,10 +11,16 @@
       <div>
         <h1>Bybridge Job Agency System</h1>
       </div>
-      <nav class="mode-switch" aria-label="系统入口">
-        <button class="active" data-view="front">前台</button>
-        <button data-view="admin">后台</button>
-      </nav>
+      <div class="topbar-actions">
+        <nav id="languageSwitch" class="language-switch" aria-label="Language">
+          <button class="active" type="button" data-lang="zh">中文</button>
+          <button type="button" data-lang="en">English</button>
+        </nav>
+        <nav class="mode-switch" aria-label="系统入口">
+          <button id="frontModeBtn" class="active" data-view="front">前台</button>
+          <button id="adminModeBtn" data-view="admin">后台</button>
+        </nav>
+      </div>
     </header>
 
     <main>
@@ -33,15 +39,15 @@
       <section id="front" class="view active-view">
         <div class="front-layout">
           <aside class="filter-panel">
-            <h2>客户筛选</h2>
+            <h2 id="filterTitle">客户筛选</h2>
             <label>
-              国籍
+              <span id="nationalityLabel">国籍</span>
               <select id="nationalityFilter">
                 <option value="全部">全部</option>
               </select>
             </label>
             <label>
-              工作经验
+              <span id="experienceLabel">工作经验</span>
               <select id="experienceFilter">
                 <option value="全部">全部</option>
                 <option value="2">2 年以上</option>
@@ -50,7 +56,7 @@
               </select>
             </label>
             <label>
-              擅长
+              <span id="skillLabel">擅长</span>
               <select id="skillFilter">
                 <option value="全部">全部</option>
               </select>

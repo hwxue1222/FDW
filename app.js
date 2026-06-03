@@ -354,19 +354,19 @@ const defaultMaidDetails = {
 
 const categoryMeta = {
   女佣: {
-    title: "女佣",
+    title: { zh: "女佣", en: "Maid" },
     eyebrow: "Domestic Worker",
-    description: "家庭护理、家务、烹饪与儿童照护人员"
+    description: { zh: "家庭护理、家务、烹饪与儿童照护人员", en: "Home care, housekeeping, cooking, and family support workers" }
   },
   建筑: {
-    title: "建筑",
+    title: { zh: "建筑", en: "Construction" },
     eyebrow: "Construction Worker",
-    description: "工地、装修、机电与现场技术人员"
+    description: { zh: "工地、装修、机电与现场技术人员", en: "Site, renovation, mechanical, electrical, and technical workers" }
   },
   服务: {
-    title: "服务",
+    title: { zh: "服务", en: "Service" },
     eyebrow: "Service Worker",
-    description: "清洁、餐饮、酒店与日常运营服务人员"
+    description: { zh: "清洁、餐饮、酒店与日常运营服务人员", en: "Cleaning, F&B, hospitality, and daily operations workers" }
   }
 };
 
@@ -498,10 +498,106 @@ function normalizeState(savedState) {
 
 const state = normalizeState(JSON.parse(localStorage.getItem("maidAgencyState")));
 let activeFrontCategory = "女佣";
+let currentLanguage = localStorage.getItem("bybridgeLanguage") || "zh";
 
 const save = () => localStorage.setItem("maidAgencyState", JSON.stringify(state));
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
+
+const uiText = {
+  zh: {
+    front: "前台",
+    admin: "后台",
+    filters: "客户筛选",
+    nationality: "国籍",
+    experience: "工作经验",
+    skill: "擅长",
+    all: "全部",
+    yearsMore: (years) => `${years} 年以上`,
+    viewable: (count) => `${count} 位可查看`,
+    empty: (category) => `当前筛选下暂无${category}工人。`,
+    fields: {
+      category: "分类",
+      nationality: "国籍",
+      age: "年龄",
+      experience: "经验",
+      salary: "薪资",
+      language: "语言"
+    },
+    ageValue: (age) => `${age} 岁`,
+    yearsValue: (years) => `${years} 年`,
+    status: {
+      可预约: "可预约",
+      面试中: "面试中"
+    }
+  },
+  en: {
+    front: "Front",
+    admin: "Admin",
+    filters: "Filters",
+    nationality: "Nationality",
+    experience: "Experience",
+    skill: "Skill",
+    all: "All",
+    yearsMore: (years) => `${years}+ years`,
+    viewable: (count) => `${count} available`,
+    empty: (category) => `No ${category} workers match the current filters.`,
+    fields: {
+      category: "Category",
+      nationality: "Nationality",
+      age: "Age",
+      experience: "Experience",
+      salary: "Salary",
+      language: "Language"
+    },
+    ageValue: (age) => `${age}`,
+    yearsValue: (years) => `${years} years`,
+    status: {
+      可预约: "Available",
+      面试中: "Interviewing"
+    }
+  }
+};
+
+function txt() {
+  return uiText[currentLanguage] || uiText.zh;
+}
+
+function localized(value) {
+  if (!value || typeof value !== "object") return value;
+  return value[currentLanguage] || value.zh || value.en || "";
+}
+
+function statusLabel(status) {
+  return txt().status[status] || status;
+}
+
+function setSelectOptions(select, options) {
+  const previous = select.value || "全部";
+  select.innerHTML = options.map(({ value, label }) => `<option value="${value}">${label}</option>`).join("");
+  if (options.some((option) => option.value === previous)) {
+    select.value = previous;
+  }
+}
+
+function renderLanguageLabels() {
+  document.documentElement.lang = currentLanguage === "en" ? "en" : "zh-CN";
+  $("#frontModeBtn").textContent = txt().front;
+  $("#adminModeBtn").textContent = txt().admin;
+  $("#filterTitle").textContent = txt().filters;
+  $("#nationalityLabel").textContent = txt().nationality;
+  $("#experienceLabel").textContent = txt().experience;
+  $("#skillLabel").textContent = txt().skill;
+  $$("#languageSwitch button").forEach((button) => {
+    button.classList.toggle("active", button.dataset.lang === currentLanguage);
+  });
+  setSelectOptions($("#experienceFilter"), [
+    { value: "全部", label: txt().all },
+    { value: "2", label: txt().yearsMore(2) },
+    { value: "4", label: txt().yearsMore(4) },
+    { value: "6", label: txt().yearsMore(6) }
+  ]);
+}
 
 const previewDialog = $("#previewDialog");
 const previewFrame = $("#previewFrame");
@@ -788,12 +884,14 @@ function initFilters() {
   const workers = allFrontWorkers();
   const nationalities = [...new Set(workers.map((worker) => worker.nationality))];
   const skills = [...new Set(workers.flatMap((worker) => worker.skills))];
-  $("#nationalityFilter").innerHTML = `<option value="全部">全部</option>${nationalities
-    .map((item) => `<option value="${item}">${item}</option>`)
-    .join("")}`;
-  $("#skillFilter").innerHTML = `<option value="全部">全部</option>${skills
-    .map((item) => `<option value="${item}">${item}</option>`)
-    .join("")}`;
+  setSelectOptions($("#nationalityFilter"), [
+    { value: "全部", label: txt().all },
+    ...nationalities.map((item) => ({ value: item, label: item }))
+  ]);
+  setSelectOptions($("#skillFilter"), [
+    { value: "全部", label: txt().all },
+    ...skills.map((item) => ({ value: item, label: item }))
+  ]);
 }
 
 function renderFront() {
@@ -814,24 +912,24 @@ function renderFront() {
       const count = filteredByControls.filter((worker) => worker.category === key).length;
       return `
         <button class="category-tab ${key === activeFrontCategory ? "active" : ""}" type="button" data-category="${key}" role="tab" aria-selected="${key === activeFrontCategory}">
-          <span>${key}</span>
+          <span>${localized(categoryMeta[key].title)}</span>
           <em>${count}</em>
         </button>
       `;
     })
     .join("");
 
-  $("#frontCount").textContent = `${workers.length} 位可查看`;
+  $("#frontCount").textContent = txt().viewable(workers.length);
   if (!workers.length) {
     $("#maidCards").innerHTML = `
       <section class="worker-section">
         <div class="worker-section-head">
           <div>
-            <h3>${meta.title}</h3>
-            <p>${meta.description}</p>
+            <h3>${localized(meta.title)}</h3>
+            <p>${localized(meta.description)}</p>
           </div>
         </div>
-        <div class="empty-state">当前筛选下暂无${meta.title}工人。</div>
+        <div class="empty-state">${txt().empty(localized(meta.title))}</div>
       </section>
     `;
     return;
@@ -841,8 +939,8 @@ function renderFront() {
     <section class="worker-section">
       <div class="worker-section-head">
         <div>
-          <h3>${meta.title}</h3>
-          <p>${meta.description}</p>
+          <h3>${localized(meta.title)}</h3>
+          <p>${localized(meta.description)}</p>
         </div>
       </div>
       <div class="worker-grid">
@@ -861,16 +959,16 @@ function renderFront() {
                       <h3>${worker.name}</h3>
                       <span>${worker.refNo} · ${worker.role}</span>
                     </div>
-                    <span class="tag ${worker.status === "面试中" ? "amber" : ""}">${worker.status}</span>
+                    <span class="tag ${worker.status === "面试中" ? "amber" : ""}">${statusLabel(worker.status)}</span>
                   </div>
                   <p>${worker.summary}</p>
                   <div class="info-grid">
-                    <div><span>分类</span><strong>${worker.category}</strong></div>
-                    <div><span>国籍</span><strong>${worker.nationality}</strong></div>
-                    <div><span>年龄</span><strong>${worker.age} 岁</strong></div>
-                    <div><span>经验</span><strong>${worker.experience} 年</strong></div>
-                    <div><span>薪资</span><strong>${worker.salary}</strong></div>
-                    <div><span>语言</span><strong>${worker.languages}</strong></div>
+                    <div><span>${txt().fields.category}</span><strong>${localized(categoryMeta[worker.category].title)}</strong></div>
+                    <div><span>${txt().fields.nationality}</span><strong>${worker.nationality}</strong></div>
+                    <div><span>${txt().fields.age}</span><strong>${txt().ageValue(worker.age)}</strong></div>
+                    <div><span>${txt().fields.experience}</span><strong>${txt().yearsValue(worker.experience)}</strong></div>
+                    <div><span>${txt().fields.salary}</span><strong>${worker.salary}</strong></div>
+                    <div><span>${txt().fields.language}</span><strong>${worker.languages}</strong></div>
                   </div>
                   <div class="skills">${worker.skills.map((item) => `<span class="tag blue">${item}</span>`).join("")}</div>
                 </div>
@@ -1299,6 +1397,7 @@ function renderSignaturePortal() {
 }
 
 function renderAll() {
+  renderLanguageLabels();
   initFilters();
   renderFront();
   renderDashboard();
@@ -1381,6 +1480,16 @@ function bindEvents() {
       button.classList.add("active");
       $(`#${button.dataset.adminTab}`).classList.add("active-admin-tab");
     });
+  });
+
+  $("#languageSwitch").addEventListener("click", (event) => {
+    const button = event.target.closest("[data-lang]");
+    if (!button) return;
+    currentLanguage = button.dataset.lang || "zh";
+    localStorage.setItem("bybridgeLanguage", currentLanguage);
+    renderLanguageLabels();
+    initFilters();
+    renderFront();
   });
 
   $("#categoryTabs").addEventListener("click", (event) => {

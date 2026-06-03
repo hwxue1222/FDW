@@ -68,7 +68,15 @@ h3 {
   text-transform: uppercase;
 }
 
-.mode-switch {
+.topbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.mode-switch,
+.language-switch {
   display: inline-flex;
   padding: 4px;
   background: #edf3f0;
@@ -76,19 +84,22 @@ h3 {
 }
 
 .mode-switch button,
+.language-switch button,
 .sidebar button {
   border: 0;
   color: var(--muted);
   background: transparent;
 }
 
-.mode-switch button {
+.mode-switch button,
+.language-switch button {
   min-width: 76px;
   padding: 10px 16px;
   border-radius: 6px;
 }
 
 .mode-switch button.active,
+.language-switch button.active,
 .sidebar button.active {
   color: var(--ink);
   background: var(--white);
