@@ -1260,7 +1260,16 @@ function detailFields(fields) {
 function renderMaidDetail(maid) {
   const selectedEvaluationMethods = new Set(maid.evaluationMethods || []);
   const medicalRows = (maid.medicalHistory || [])
-    .map((item) => `<div class="simple-row"><span>${item.item || "-"}</span><strong>${item.status || "-"}</strong></div>`)
+    .map((item) => {
+      const status = item.status || "-";
+      const clearStatus = ["No", "N/A", "-", "Nil", "None"].includes(status);
+      return `
+        <div class="medical-chip ${clearStatus ? "" : "attention"}">
+          <span>${item.item || "-"}</span>
+          <strong>${status}</strong>
+        </div>
+      `;
+    })
     .join("");
   const skillRows = (maid.skillAssessment || [])
     .map(
@@ -1366,7 +1375,7 @@ function renderMaidDetail(maid) {
             [uiLabel("Allergies / Fears / Restrictions", "过敏 / 害怕 / 限制"), maid.allergies]
           ])}
         </div>
-        <div class="simple-table">${medicalRows || `<div class="empty-state compact">${uiLabel("No medical history yet.", "暂无医疗记录。")}</div>`}</div>
+        <div class="medical-grid">${medicalRows || `<div class="empty-state compact">${uiLabel("No medical history yet.", "暂无医疗记录。")}</div>`}</div>
       </section>
 
       <section class="detail-section">

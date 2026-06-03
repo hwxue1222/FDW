@@ -677,6 +677,47 @@ textarea {
   color: var(--muted);
 }
 
+.medical-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.medical-chip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 40px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfdfc;
+  font-size: 13px;
+}
+
+.medical-chip span {
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.medical-chip strong {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #eef5f1;
+  color: var(--green-dark);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.medical-chip.attention strong {
+  background: #fff3df;
+  color: var(--amber);
+}
+
 .maid-skill-table {
   margin-top: 2px;
 }
@@ -1235,7 +1276,8 @@ menu {
 @media (max-width: 1050px) {
   .worker-grid,
   .metric-grid,
-  .profile-grid {
+  .profile-grid,
+  .medical-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
@@ -1293,6 +1335,7 @@ menu {
   }
 
   .profile-grid,
+  .medical-grid,
   .payment-row,
   .history-row,
   .maid-fixed-grid,
