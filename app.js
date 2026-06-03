@@ -455,6 +455,74 @@ const formTemplates = [
   { title: "Rest Day Agreement", url: "assets/blank_rest_day_agreement_template.pdf", categories: ["女佣"] }
 ];
 
+const watiClientSeed = {
+  id: "c-wati",
+  name: "Employer",
+  phone: "To be confirmed",
+  need: "Domestic worker",
+  budget: "To be confirmed",
+  assignedMaidId: "m4",
+  hires: [
+    {
+      id: "h-wati",
+      maidId: "m4",
+      contractNo: "To be generated",
+      startDate: "TBC",
+      status: "跟进中",
+      consultant: "To be assigned",
+      payments: []
+    }
+  ]
+};
+
+const maidEmploymentProcessSteps = [
+  { step: "Interview", date: "TBC", status: "pending", note: "Start from interview and confirm suitability" },
+  { step: "Training", date: "TBC", status: "pending", note: "Training after interview confirmation" },
+  { step: "Arrival in Singapore", date: "TBC", status: "pending", note: "Waiting for arrival arrangement" },
+  { step: "Medical Check", date: "TBC", status: "pending", note: "Arrange medical check after arrival" },
+  { step: "Pre-deployment Training", date: "TBC", status: "pending", note: "Pre-deployment briefing and final documents" },
+  { step: "Deployment (Sent to employer's house and start working)", date: "TBC", status: "pending", note: "Final deployment stage" }
+];
+
+const stageSigningRequirements = {
+  Interview: [
+    {
+      templateTitle: "Biodata",
+      signerRole: "Employer",
+      signatureArea: "Employer confirmation / biodata acknowledgement section"
+    },
+    {
+      templateTitle: "Quotation",
+      signerRole: "Employer",
+      signatureArea: "Quotation acceptance / customer signature section"
+    }
+  ],
+  Training: [
+    {
+      templateTitle: "Work Permit Application Form",
+      signerRole: "Employer",
+      signatureArea: "Employer declaration and signature section"
+    }
+  ],
+  "Pre-deployment Training": [
+    {
+      templateTitle: "PDPA Statement",
+      signerRole: "Employer",
+      signatureArea: "PDPA acknowledgement / consent signature section"
+    },
+    {
+      templateTitle: "Employment Contract",
+      signerRole: "Employer",
+      signatureArea: "Employer signature section"
+    },
+    {
+      templateTitle: "Employment Contract",
+      signerRole: "FDW",
+      signatureArea: "FDW signature section"
+    }
+  ]
+};
+
 const defaultTimelineSteps = [
   { step: "Interview", date: "TBC", status: "待处理", note: "Waiting for customer appointment" },
   { step: "Document Confirmation", date: "TBC", status: "待处理", note: "Waiting for documents to be filled and confirmed" },
@@ -464,15 +532,24 @@ const defaultTimelineSteps = [
 
 function normalizeTimelineStage(item) {
   if (!item) return item;
+  const statusMap = {
+    待处理: "pending",
+    进行中: "in process",
+    已完成: "completed"
+  };
+  const normalizedItem = {
+    ...item,
+    status: statusMap[item.status] || item.status || "pending"
+  };
   if (item.step === "Deployment Training") {
     return {
-      ...item,
+      ...normalizedItem,
       step: "Pre-deployment Training"
     };
   }
-  if (!["Periodic Medical Check", "Deployment"].includes(item.step)) return item;
+  if (!["Periodic Medical Check", "Deployment"].includes(item.step)) return normalizedItem;
   return {
-    ...item,
+    ...normalizedItem,
     step: "Deployment (Sent to employer's house and start working)",
     note: "Final deployment stage"
   };
@@ -490,6 +567,18 @@ function normalizeDocumentStage(stage) {
 
 function normalizeState(savedState) {
   const data = savedState || seed;
+  const needsWatiReset = data.workflowVersion !== "wati-employment-process-v1";
+  if (needsWatiReset) {
+    const seedWati = seed.maids.find((maid) => maid.id === "m4");
+    const existingWati = (data.maids || []).find((maid) => maid.id === "m4" || maid.refNo === seedWati?.refNo);
+    const existingClient = (data.clients || []).find((client) => client.assignedMaidId === "m4" || (client.hires || []).some((hire) => hire.maidId === "m4"));
+    data.maids = [{ ...seedWati, ...(existingWati || {}) }];
+    data.clients = [{ ...watiClientSeed, ...(existingClient || {}), assignedMaidId: "m4" }];
+    data.timeline = { m4: maidEmploymentProcessSteps.map((step) => ({ ...step })) };
+    data.documents = [];
+    data.workers = [];
+    data.workflowVersion = "wati-employment-process-v1";
+  }
   if (savedState) {
     seed.maids.forEach((seedMaid) => {
       if (!data.maids?.some((maid) => maid.id === seedMaid.id || (maid.refNo && maid.refNo === seedMaid.refNo))) {
@@ -527,6 +616,7 @@ function normalizeState(savedState) {
     evaluationMethods: maid.evaluationMethods || seed.maids.find((item) => item.id === maid.id)?.evaluationMethods || [],
     interviewAvailability: maid.interviewAvailability || seed.maids.find((item) => item.id === maid.id)?.interviewAvailability || []
   }));
+  data.maids = data.maids.filter((maid) => maid.id === "m4" || maid.refNo === "BBC0189JW");
   data.clients = (data.clients || []).map((client) => ({
     ...client,
     hires:
@@ -547,11 +637,14 @@ function normalizeState(savedState) {
         }
       ]
   }));
+  data.clients = data.clients.filter((client) => client.assignedMaidId === "m4" || (client.hires || []).some((hire) => hire.maidId === "m4"));
+  if (!data.clients.length) {
+    data.clients = [{ ...watiClientSeed }];
+  }
   data.timeline = data.timeline || seed.timeline;
-  data.workers = (data.workers || externalWorkers).map((worker) => {
-    const seedWorker = externalWorkers.find((item) => item.id === worker.id);
-    return { ...worker, ...(seedWorker || {}), skills: (seedWorker || worker).skills || [], status: (seedWorker || worker).status || "可预约" };
-  });
+  data.timeline.m4 = (data.timeline.m4?.length ? data.timeline.m4 : maidEmploymentProcessSteps).map((item) => normalizeTimelineStage({ ...item }));
+  data.timeline = { m4: data.timeline.m4 };
+  data.workers = [];
   data.workers.forEach((worker) => {
     data.timeline[worker.id] = data.timeline[worker.id] || defaultTimelineSteps.map((step) => ({ ...step }));
   });
@@ -567,7 +660,8 @@ function normalizeState(savedState) {
     source: "template",
     ...doc,
     stage: normalizeDocumentStage(doc.stage)
-  }));
+  })).filter((doc) => doc.maidId === "m4");
+  data.workflowVersion = "wati-employment-process-v1";
   return data;
 }
 
@@ -617,7 +711,10 @@ const uiText = {
       待付款: "待付款",
       未到期: "未到期",
       跟进中: "跟进中",
-      培训中: "培训中"
+      培训中: "培训中",
+      pending: "Pending",
+      "in process": "In Process",
+      completed: "Completed"
     }
   },
   en: {
@@ -653,7 +750,10 @@ const uiText = {
       待付款: "Payment Due",
       未到期: "Not Due",
       跟进中: "Following Up",
-      培训中: "Training"
+      培训中: "Training",
+      pending: "Pending",
+      "in process": "In Process",
+      completed: "Completed"
     }
   }
 };
@@ -928,20 +1028,30 @@ function findTimelineStep(maidId, stage) {
 
 function markStepInProgress(maidId, stage) {
   const step = findTimelineStep(maidId, stage);
-  if (!step || step.status === "已完成") return;
-  step.status = "进行中";
-  step.note = step.note || "Signing document uploaded";
+  if (!step || step.status === "completed") return;
+  step.status = "in process";
+  step.note = step.note || "Signing document sent";
 }
 
 function completeStepAndOpenNext(maidId, stage) {
   const items = timelineItemsForMaid(maidId);
   const index = items.findIndex((item) => item.step === stage);
   if (index < 0) return;
-  items[index].status = "已完成";
-  items[index].note = "Customer completed e-signature";
+  const stageDocs = documentsForStage(maidId, stage);
+  const requirements = stageSigningRequirements[stage] || [];
+  const allStageDocsSigned = requirements.length
+    ? requirements.every((requirement) => documentsForRequirement(maidId, stage, requirement)?.status === "已签署")
+    : stageDocs.length > 0 && stageDocs.every((doc) => doc.status === "已签署");
+  if (!allStageDocsSigned) {
+    items[index].status = "in process";
+    items[index].note = "Waiting for all required signatures";
+    return;
+  }
+  items[index].status = "completed";
+  items[index].note = "All required signatures completed";
   const next = items[index + 1];
-  if (next && next.status !== "已完成" && next.status !== "进行中") {
-    next.status = "待处理";
+  if (next && next.status !== "completed" && next.status !== "in process") {
+    next.status = "pending";
     next.note = next.note || "Waiting for file upload or processing";
   }
 }
@@ -1085,6 +1195,63 @@ function createSigningDocumentFromTemplate(templateTitle, stageOverride) {
   );
 }
 
+function signerLabel(role) {
+  if (role === "FDW") return "FDW";
+  if (role === "Employer") return uiLabel("Employer", "雇主");
+  return role || uiLabel("Signer", "签署方");
+}
+
+function requirementKey(requirement) {
+  return `${requirement.templateTitle}::${requirement.signerRole}`;
+}
+
+function documentsForRequirement(maidId, stage, requirement) {
+  const key = requirementKey(requirement);
+  return documentsForStage(maidId, stage).find((doc) => doc.requirementKey === key);
+}
+
+function createSigningDocumentFromRequirement(requirement, stageOverride) {
+  const template = formTemplates.find((item) => item.title === requirement.templateTitle);
+  if (!template) return null;
+  const maidId = $("#timelineMaidSelect").value || workersForCategory()[0]?.id || "";
+  const clientId = $("#processClientSelect").value || firstClientForMaid(maidId)?.id || "";
+  const existing = documentsForRequirement(maidId, stageOverride, requirement);
+  if (existing) return existing;
+  const id = `d${Date.now()}${Math.round(Math.random() * 1000)}`;
+  const doc = {
+    id,
+    clientId,
+    maidId,
+    name: requirement.templateTitle,
+    stage: stageOverride,
+    status: "待签署",
+    sentAt: new Date().toISOString().slice(0, 10),
+    signedAt: "",
+    signedBy: "",
+    copySent: false,
+    fileName: `${requirement.templateTitle}.pdf`,
+    fileType: "PDF",
+    files: [{ fileName: `${requirement.templateTitle}.pdf`, fileType: "PDF", uploadedAt: new Date().toISOString().slice(0, 10), templateUrl: template.url }],
+    signingLink: `#sign=${id}`,
+    source: "template",
+    requirementKey: requirementKey(requirement),
+    signerRole: requirement.signerRole,
+    signatureArea: requirement.signatureArea,
+    mergeFields: {
+      clientName: clientById(clientId)?.name || "",
+      clientPhone: clientById(clientId)?.phone || "",
+      maidName: workerById(maidId)?.name || "",
+      maidRefNo: workerById(maidId)?.refNo || "",
+      maidPassport: workerById(maidId)?.passportNo || ""
+    }
+  };
+  state.documents.unshift(doc);
+  markStepInProgress(maidId, stageOverride);
+  save();
+  renderAll();
+  return doc;
+}
+
 function addFilesToStage(files, stage) {
   let doc = null;
   [...files].forEach((file) => {
@@ -1096,14 +1263,14 @@ function addFilesToStage(files, stage) {
 }
 
 function statusClass(status) {
-  if (status === "已完成" || status === "已签署") return "";
-  if (status === "进行中") return "amber";
+  if (status === "已完成" || status === "已签署" || status === "completed") return "";
+  if (status === "进行中" || status === "in process") return "amber";
   return "red";
 }
 
 function timelineClass(status) {
-  if (status === "已完成") return "";
-  if (status === "进行中") return "pending";
+  if (status === "已完成" || status === "completed") return "";
+  if (status === "进行中" || status === "in process") return "pending";
   return "blocked";
 }
 
@@ -1941,7 +2108,14 @@ function renderTimeline() {
             </div>
             ${renderStageDocuments(maidId, item.step)}
           </div>
-          <span class="tag ${statusClass(item.status)}">${statusLabel(item.status)}</span>
+          <label class="stage-status-control">
+            <span>${uiLabel("Step Status", "步骤状态")}</span>
+            <select data-stage-status="${item.step}">
+              <option value="pending" ${item.status === "pending" ? "selected" : ""}>Pending</option>
+              <option value="in process" ${item.status === "in process" ? "selected" : ""}>In Process</option>
+              <option value="completed" ${item.status === "completed" ? "selected" : ""}>Completed</option>
+            </select>
+          </label>
         </div>
       `
     )
@@ -1950,43 +2124,34 @@ function renderTimeline() {
 }
 
 function renderStageDocuments(maidId, stage) {
-  const docs = documentsForStage(maidId, stage);
-  const templateOptions = formTemplates
-    .filter((template) => template.categories.includes(activeAdminCategory))
-    .map((template) => `<option value="${template.title}">${template.title}</option>`)
-    .join("");
-  const docList =
-    docs
-      .map((doc) => {
-        const signed = doc.status === "已签署";
-        const files = doc.files || [{ fileName: doc.fileName, fileType: doc.fileType }];
-        return `
-          <div class="stage-package">
-            <div>
-              <div class="row-title">${doc.name}</div>
-              <div class="row-sub">${clientById(doc.clientId)?.name || uiLabel("Unassigned client", "未指定客户")} · ${files.length} ${uiLabel("file(s)", "个文件")} · ${uiLabel("one signing link", "一个签署链接")}</div>
-              <div class="merge-preview">${uiLabel("Auto-filled", "已自动带入")}：${uiLabel("Client", "客户")} ${clientById(doc.clientId)?.name || "-"} / ${uiLabel("Worker", "人员")} ${workerName(doc.maidId)}</div>
-              <div class="file-chip-list">${files.map((file) => `<span class="file-chip">${file.fileName}</span>`).join("")}</div>
-            </div>
-            <span class="tag ${signed ? "" : "red"}">${statusLabel(doc.status)}</span>
-            <button class="mini-btn" data-copy-link="${doc.id}">${uiLabel("Copy Link", "复制链接")}</button>
-            <a class="mini-link" href="#sign=${doc.id}" target="_blank">${uiLabel("Open Signing", "打开签署")}</a>
+  const requirements = stageSigningRequirements[stage] || [];
+  const docList = requirements
+    .map((requirement) => {
+      const doc = documentsForRequirement(maidId, stage, requirement);
+      const signed = doc?.status === "已签署";
+      const sent = Boolean(doc);
+      return `
+        <div class="stage-package requirement-card">
+          <div>
+            <div class="row-title">${requirement.templateTitle}</div>
+            <div class="row-sub">${uiLabel("Signer", "签署方")}: ${signerLabel(requirement.signerRole)} · ${uiLabel("Signature Area", "签字位置")}: ${requirement.signatureArea}</div>
+            <div class="merge-preview">${uiLabel("Auto-filled", "已自动带入")}：${uiLabel("Client", "客户")} ${clientById(doc?.clientId || $("#processClientSelect").value)?.name || "-"} / ${uiLabel("Worker", "人员")} ${workerName(maidId)}</div>
+            ${sent ? `<div class="file-chip-list"><span class="file-chip">${doc.fileName}</span><span class="file-chip">${uiLabel("Link", "链接")}: ${signerLabel(doc.signerRole)}</span></div>` : ""}
           </div>
-        `;
-      })
-      .join("");
+          <span class="tag ${signed ? "" : sent ? "red" : "amber"}">${sent ? statusLabel(doc.status) : uiLabel("Not Sent", "未发送")}</span>
+          ${
+            sent
+              ? `<button class="mini-btn" data-copy-link="${doc.id}">${uiLabel("Copy Link", "复制链接")}</button>
+                 <a class="mini-link" href="#sign=${doc.id}" target="_blank">${uiLabel("Open Signing", "打开签署")}</a>`
+              : `<button class="primary-btn" type="button" data-send-requirement-stage="${stage}" data-send-requirement-index="${requirements.indexOf(requirement)}">${uiLabel(`Filled, Send to ${requirement.signerRole}`, `填写完毕，发送给${requirement.signerRole}`)}</button>`
+          }
+        </div>
+      `;
+    })
+    .join("");
   return `
     <div class="stage-documents">
-      <div class="stage-form-picker">
-        <label>
-          ${uiLabel("Select Document to Fill", "选择需要填写的文件")}
-          <select data-template-select="${stage}">
-            ${templateOptions}
-          </select>
-        </label>
-        <button class="primary-btn" type="button" data-send-template="${stage}">${uiLabel("Completed, Send Link to Client for Signature", "填写完毕，发送链接给客户签名")}</button>
-      </div>
-      ${docList || `<div class="empty-state">${uiLabel("No signing documents in this stage yet.", "这个节点还没有签署文件。")}</div>`}
+      ${docList || `<div class="empty-state">${uiLabel("No signing documents required in this stage.", "这个节点暂不需要签署文件。")}</div>`}
     </div>
   `;
 }
@@ -2013,6 +2178,7 @@ function renderDocuments() {
           <div>
             <div class="row-title">${doc.name}</div>
             <div class="row-sub">${doc.stage} · ${uiLabel("Sent", "发送")} ${doc.sentAt} · ${doc.fileName}</div>
+            <div class="row-sub">${uiLabel("Signer", "签署方")}: ${signerLabel(doc.signerRole)} · ${uiLabel("Signature Area", "签字位置")}: ${doc.signatureArea || "-"}</div>
           </div>
           <div>${clientById(doc.clientId)?.name || uiLabel("Unassigned client", "未指定客户")} / ${workerName(doc.maidId)}</div>
           <div>
@@ -2085,6 +2251,7 @@ function renderSignaturePortal() {
   const worker = workerById(doc.maidId);
   const signed = doc.status === "已签署";
   const files = doc.files || [{ fileName: doc.fileName, fileType: doc.fileType }];
+  const defaultSignerName = doc.signerRole === "FDW" ? worker?.name || "" : client?.name || "";
   $("#signatureContent").innerHTML = `
     <article class="signature-card">
       <div class="detail-head">
@@ -2097,6 +2264,8 @@ function renderSignaturePortal() {
       <div class="profile-grid">
         <div><span>${uiLabel("Client", "客户")}</span><strong>${client?.name || "-"}</strong></div>
         <div><span>${uiLabel("Worker", "人员")}</span><strong>${worker?.name || "-"}</strong></div>
+        <div><span>${uiLabel("Signing Party", "签署方")}</span><strong>${signerLabel(doc.signerRole)}</strong></div>
+        <div><span>${uiLabel("Signature Area", "签字位置")}</span><strong>${doc.signatureArea || "-"}</strong></div>
         <div><span>${uiLabel("Sent Date", "发送日期")}</span><strong>${doc.sentAt}</strong></div>
         <div><span>${uiLabel("Signed Date", "签署日期")}</span><strong>${doc.signedAt || statusLabel("待签署")}</strong></div>
       </div>
@@ -2104,15 +2273,15 @@ function renderSignaturePortal() {
         <h3>${uiLabel("Document Preview", "文件预览")}</h3>
         <p>${uiLabel(`This signing link contains ${files.length} file(s). The production system will merge them into one PDF signing package and request customer signature page by page.`, `这个签署链接包含 ${files.length} 个文件。正式系统会把这些文件合并为一份 PDF 签署包，并逐页要求客户签署。`)}</p>
         <div class="file-chip-list">${files.map((file) => `<span class="file-chip">${file.fileName}</span>`).join("")}</div>
-        <div class="merge-preview">${uiLabel("Client", "客户")}：${client?.name || "-"}　${uiLabel("Worker", "人员")}：${worker?.name || "-"}　${uiLabel("Process", "流程")}：${doc.stage}</div>
+        <div class="merge-preview">${uiLabel("Client", "客户")}：${client?.name || "-"}　${uiLabel("Worker", "人员")}：${worker?.name || "-"}　${uiLabel("Process", "流程")}：${doc.stage}　${uiLabel("Signer", "签署方")}：${signerLabel(doc.signerRole)}</div>
       </div>
       ${
         signed
-          ? `<div class="signed-box">${uiLabel("Signed by", "已由")} ${doc.signedBy || client?.name || uiLabel("Customer", "客户")} ${uiLabel("on", "于")} ${doc.signedAt} ${uiLabel("and a copy has been sent to the customer.", "签署，副本已发送给客户。")}</div>`
+          ? `<div class="signed-box">${uiLabel("Signed by", "已由")} ${doc.signedBy || defaultSignerName || uiLabel("Signer", "签署方")} ${uiLabel("on", "于")} ${doc.signedAt} ${uiLabel("and a copy has been sent to the customer.", "签署，副本已发送给客户。")}</div>`
           : `<form id="signatureForm" class="signature-form">
               <label>
                 ${uiLabel("Signer Name", "签署人姓名")}
-                <input name="signedBy" value="${client?.name || ""}" required />
+                <input name="signedBy" value="${defaultSignerName}" required />
               </label>
               <label class="check-option">
                 <input name="confirm" type="checkbox" required />
@@ -2318,6 +2487,17 @@ function bindEvents() {
 
   $("#timelineMaidSelect").addEventListener("change", renderTimeline);
   $("#processClientSelect").addEventListener("change", renderProcessDocuments);
+
+  document.addEventListener("change", (event) => {
+    const statusSelect = event.target.closest("[data-stage-status]");
+    if (!statusSelect) return;
+    const maidId = $("#timelineMaidSelect").value || workersForCategory()[0]?.id || "";
+    const step = findTimelineStep(maidId, statusSelect.dataset.stageStatus);
+    if (!step) return;
+    step.status = statusSelect.value;
+    save();
+    renderTimeline();
+  });
 
   $("#maidPdfInput").addEventListener("change", async (event) => {
     const file = event.target.files?.[0];
@@ -2564,6 +2744,23 @@ function bindEvents() {
   });
 
   document.addEventListener("click", (event) => {
+    const requirementButton = event.target.closest("[data-send-requirement-stage]");
+    if (requirementButton) {
+      const stage = requirementButton.dataset.sendRequirementStage;
+      const index = Number(requirementButton.dataset.sendRequirementIndex || 0);
+      const requirement = (stageSigningRequirements[stage] || [])[index];
+      if (!requirement) return;
+      if (!$("#processClientSelect").value) {
+        alert(uiLabel("Please add or select a client in the current category first.", "请先在当前分类下新增或选择客户。"));
+        return;
+      }
+      const doc = createSigningDocumentFromRequirement(requirement, stage);
+      if (doc) {
+        alert(uiLabel(`Signing link for ${requirement.signerRole} generated: ${currentSigningUrl(doc.id)}`, `${requirement.signerRole} 的签署链接已生成：${currentSigningUrl(doc.id)}`));
+      }
+      return;
+    }
+
     const sendTemplateButton = event.target.closest("[data-send-template]");
     if (sendTemplateButton) {
       const stage = sendTemplateButton.dataset.sendTemplate;
@@ -2597,6 +2794,7 @@ function bindEvents() {
     const doc = state.documents.find((item) => item.id === button.dataset.signDoc);
     doc.status = "已签署";
     doc.signedAt = new Date().toISOString().slice(0, 10);
+    doc.signedBy = doc.signerRole === "FDW" ? workerById(doc.maidId)?.name || doc.signerRole : clientById(doc.clientId)?.name || doc.signerRole || "";
     doc.copySent = true;
     completeStepAndOpenNext(doc.maidId, doc.stage);
     save();
