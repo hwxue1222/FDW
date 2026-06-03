@@ -551,6 +551,7 @@ function normalizeState(savedState) {
 
 const state = normalizeState(JSON.parse(localStorage.getItem("maidAgencyState")));
 let activeFrontCategory = "女佣";
+let activeFrontDetailId = "";
 let activeAdminCategory = "女佣";
 let activeMaidDetailId = "";
 let currentLanguage = localStorage.getItem("bybridgeLanguage") || "en";
@@ -810,6 +811,23 @@ document.addEventListener("click", (event) => {
   if (backTarget) {
     activeMaidDetailId = "";
     renderAdminMaids();
+  }
+});
+
+document.addEventListener("click", (event) => {
+  const frontDetailTarget = event.target.closest("[data-open-front-detail]");
+  if (frontDetailTarget) {
+    activeFrontDetailId = frontDetailTarget.dataset.openFrontDetail || "";
+    renderFront();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    return;
+  }
+
+  const frontBackTarget = event.target.closest("[data-back-front-list]");
+  if (frontBackTarget) {
+    activeFrontDetailId = "";
+    renderFront();
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 });
 
@@ -1121,6 +1139,21 @@ function renderFront() {
     .join("");
 
   $("#frontCount").textContent = txt().viewable(workers.length);
+  if (activeFrontDetailId) {
+    const selectedWorker = workers.find((worker) => worker.id === activeFrontDetailId);
+    if (!selectedWorker) {
+      activeFrontDetailId = "";
+    } else {
+      const maid = maidById(activeFrontDetailId);
+      $("#maidCards").innerHTML = `
+        <section class="worker-section">
+          ${maid ? renderMaidDetail(maid, { context: "front" }) : renderFrontWorkerDetail(selectedWorker)}
+          ${footer}
+        </section>
+      `;
+      return;
+    }
+  }
   if (!workers.length) {
     $("#maidCards").innerHTML = `
       <section class="worker-section">
@@ -1158,12 +1191,13 @@ function renderFront() {
                 <div class="maid-body">
                   <div class="maid-title">
                     <div>
-                      <h3>${worker.name}</h3>
+                      <button class="text-link maid-name-link" type="button" data-open-front-detail="${worker.id}">${worker.name}</button>
                       <span>${worker.refNo} · ${worker.role}</span>
                     </div>
                     <span class="tag ${worker.status === "面试中" ? "amber" : ""}">${statusLabel(worker.status)}</span>
                   </div>
                   <p>${worker.summary}</p>
+                  <h4 class="card-section-title">${uiLabel("Personal Particulars", "个人资料")}</h4>
                   <div class="info-grid">
                     <div><span>${txt().fields.category}</span><strong>${localized(categoryMeta[worker.category].title)}</strong></div>
                     <div><span>${txt().fields.nationality}</span><strong>${worker.nationality}</strong></div>
@@ -1442,7 +1476,8 @@ function detailFields(fields) {
     .join("");
 }
 
-function renderMaidDetail(maid) {
+function renderMaidDetail(maid, options = {}) {
+  const isFrontDetail = options.context === "front";
   const selectedEvaluationMethods = new Set(maid.evaluationMethods || []);
   const medicalRows = (maid.medicalHistory || [])
     .map((item) => {
@@ -1498,7 +1533,7 @@ function renderMaidDetail(maid) {
   return `
     <article class="detail-card maid-detail-card">
       <div class="detail-toolbar">
-        <button class="mini-btn" type="button" data-back-maid-list>${uiLabel("Back to Personnel List", "返回人员列表")}</button>
+        <button class="mini-btn" type="button" ${isFrontDetail ? "data-back-front-list" : "data-back-maid-list"}>${isFrontDetail ? uiLabel("Back to Worker List", "返回人员列表") : uiLabel("Back to Personnel List", "返回人员列表")}</button>
         <span class="tag ${maid.status === "面试中" ? "amber" : ""}">${statusLabel(maid.status)}</span>
       </div>
       <div class="detail-head">
@@ -1624,6 +1659,54 @@ function renderMaidDetail(maid) {
             [uiLabel("Biodata Remarks", "Biodata 备注"), maid.biodataRemarks]
           ])}
         </div>
+      </section>
+    </article>
+  `;
+}
+
+function renderFrontWorkerDetail(worker) {
+  return `
+    <article class="detail-card maid-detail-card">
+      <div class="detail-toolbar">
+        <button class="mini-btn" type="button" data-back-front-list>${uiLabel("Back to Worker List", "返回人员列表")}</button>
+        <span class="tag ${worker.status === "面试中" ? "amber" : ""}">${statusLabel(worker.status)}</span>
+      </div>
+      <div class="detail-head">
+        <div class="profile-title">
+          ${
+            worker.photoUrl
+              ? `<img class="profile-avatar large" src="${worker.photoUrl}" alt="${worker.name}" />`
+              : `<div class="profile-avatar large ${worker.category === "建筑" ? "building" : worker.category === "服务" ? "service" : ""}">${worker.name.slice(0, 1)}</div>`
+          }
+          <div>
+            <h3>${worker.name}</h3>
+            <div class="row-sub">${worker.refNo} · ${worker.role} · ${worker.nationality} · ${txt().ageValue(worker.age)}</div>
+          </div>
+        </div>
+      </div>
+
+      <section class="detail-section">
+        <h3>${uiLabel("Personal Particulars", "个人资料")}</h3>
+        <div class="profile-grid maid-fixed-grid">
+          ${detailFields([
+            [uiLabel("Name", "姓名"), worker.name],
+            [uiLabel("Reference No.", "编号"), worker.refNo],
+            [uiLabel("Category", "分类"), localized(categoryMeta[worker.category].title)],
+            [uiLabel("Nationality", "国籍"), worker.nationality],
+            [uiLabel("Age", "年龄"), worker.age ? txt().ageValue(worker.age) : ""],
+            [uiLabel("Role", "职位"), worker.role],
+            [uiLabel("Experience", "经验"), worker.experience ? txt().yearsValue(worker.experience) : ""],
+            [uiLabel("Salary", "薪资"), worker.salary],
+            [uiLabel("Languages", "语言"), worker.languages],
+            [uiLabel("Status", "状态"), statusLabel(worker.status)]
+          ])}
+        </div>
+      </section>
+
+      <section class="detail-section">
+        <h3>${uiLabel("Summary", "摘要")}</h3>
+        <p class="detail-copy">${worker.summary || "-"}</p>
+        <div class="skills">${(worker.skills || []).map((item) => `<span class="tag blue">${item}</span>`).join("")}</div>
       </section>
     </article>
   `;
