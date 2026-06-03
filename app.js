@@ -525,6 +525,7 @@ function normalizeState(savedState) {
 const state = normalizeState(JSON.parse(localStorage.getItem("maidAgencyState")));
 let activeFrontCategory = "女佣";
 let activeAdminCategory = "女佣";
+let activeMaidDetailId = "";
 let currentLanguage = localStorage.getItem("bybridgeLanguage") || "zh";
 
 const save = () => localStorage.setItem("maidAgencyState", JSON.stringify(state));
@@ -597,6 +598,18 @@ function localized(value) {
 
 function statusLabel(status) {
   return txt().status[status] || status;
+}
+
+function displayValue(value, fallback = "-") {
+  if (Array.isArray(value)) return value.length ? value.join("、") : fallback;
+  if (value === 0) return "0";
+  return value || fallback;
+}
+
+function heightWeightValue(maid) {
+  const height = maid.height ? `${maid.height} cm` : "";
+  const weight = maid.weight ? `${maid.weight} kg` : "";
+  return [height, weight].filter(Boolean).join(" / ") || "-";
 }
 
 function setSelectOptions(select, options) {
@@ -676,6 +689,21 @@ document.addEventListener("click", (event) => {
   const title = target.getAttribute("data-title") || target.textContent || "预览";
   if (!url) return;
   openPdfPreview(url, title);
+});
+
+document.addEventListener("click", (event) => {
+  const detailTarget = event.target.closest("[data-open-maid-detail]");
+  if (detailTarget) {
+    activeMaidDetailId = detailTarget.dataset.openMaidDetail || "";
+    renderAdminMaids();
+    return;
+  }
+
+  const backTarget = event.target.closest("[data-back-maid-list]");
+  if (backTarget) {
+    activeMaidDetailId = "";
+    renderAdminMaids();
+  }
 });
 
 function maidById(id) {
@@ -1158,12 +1186,197 @@ function renderDownloads() {
     .join("");
 }
 
+function detailFields(fields) {
+  return fields
+    .map(
+      ([label, value]) => `
+        <div>
+          <span>${label}</span>
+          <strong>${displayValue(value)}</strong>
+        </div>
+      `
+    )
+    .join("");
+}
+
+function renderMaidDetail(maid) {
+  const medicalRows = (maid.medicalHistory || [])
+    .map((item) => `<div class="simple-row"><span>${item.item || "-"}</span><strong>${item.status || "-"}</strong></div>`)
+    .join("");
+  const skillRows = (maid.skillAssessment || [])
+    .map(
+      (item) => `
+        <div class="skill-row">
+          <span>${item.area || "-"}</span>
+          <span>${item.willingness || "-"}</span>
+          <span>${item.experience || "-"}</span>
+          <span>${item.years || "-"}</span>
+          <span>${item.rating || "-"}</span>
+          <span>${item.observation || "-"}</span>
+        </div>
+      `
+    )
+    .join("");
+  const employmentRows = (maid.employmentHistory || [])
+    .map(
+      (item) => `
+        <div class="history-row maid-history-row">
+          <span>${[item.from, item.to].filter(Boolean).join(" - ") || "-"}</span>
+          <span>${item.country || "-"}</span>
+          <span>${item.employer || "-"}</span>
+          <span>${item.duties || "-"}</span>
+        </div>
+      `
+    )
+    .join("");
+  const momRows = (maid.momHistory || [])
+    .map(
+      (item) => `
+        <div class="history-row maid-history-row">
+          <span>${[item.startDate, item.endDate].filter(Boolean).join(" - ") || "-"}</span>
+          <span>${item.employer || "-"}</span>
+          <span>${item.industry || "-"}</span>
+          <span>-</span>
+        </div>
+      `
+    )
+    .join("");
+
+  return `
+    <article class="detail-card maid-detail-card">
+      <div class="detail-toolbar">
+        <button class="mini-btn" type="button" data-back-maid-list>返回人员列表</button>
+        <span class="tag ${maid.status === "面试中" ? "amber" : ""}">${maid.status}</span>
+      </div>
+      <div class="detail-head">
+        <div class="profile-title">
+          ${
+            maid.photoUrl
+              ? `<img class="profile-avatar large" src="${maid.photoUrl}" alt="${maid.name}" />`
+              : `<div class="profile-avatar large">${maid.name.slice(0, 1)}</div>`
+          }
+          <div>
+            <h3>${maid.name}</h3>
+            <div class="row-sub">${maid.refNo} · Domestic Worker · ${maid.nationality} · ${maid.age} 岁</div>
+          </div>
+        </div>
+      </div>
+
+      <section class="detail-section">
+        <h3>固定个人信息标签</h3>
+        <div class="profile-grid maid-fixed-grid">
+          ${detailFields([
+            ["姓名", maid.name],
+            ["编号", maid.refNo],
+            ["国籍", maid.nationality],
+            ["出生日期", maid.dateOfBirth],
+            ["年龄", maid.age ? `${maid.age} 岁` : ""],
+            ["宗教", maid.religion],
+            ["婚姻状况", maid.maritalStatus],
+            ["学历", maid.education],
+            ["身高 / 体重", heightWeightValue(maid)],
+            ["出生 / 家乡城市", maid.originCity],
+            ["家庭地址", maid.homeAddress],
+            ["兄弟姐妹人数", maid.siblings],
+            ["曾工作国家", maid.workedCountries],
+            ["薪资", maid.salary ? `S$${maid.salary}` : ""],
+            ["休息日", maid.offDay],
+            ["语言", maid.languages]
+          ])}
+        </div>
+      </section>
+
+      <section class="detail-section">
+        <h3>证件与准证信息</h3>
+        <div class="profile-grid maid-fixed-grid">
+          ${detailFields([
+            ["护照号码", maid.passportNo],
+            ["FIN", maid.fin],
+            ["WP No.", maid.wpNo],
+            ["回国机场", maid.repatriationAirport]
+          ])}
+        </div>
+      </section>
+
+      <section class="detail-section">
+        <h3>健康、饮食与限制</h3>
+        <div class="profile-grid maid-fixed-grid">
+          ${detailFields([
+            ["医疗状态", maid.medicalStatus],
+            ["饮食 / 食物处理", maid.foodHandling],
+            ["过敏 / 害怕 / 限制", maid.allergies]
+          ])}
+        </div>
+        <div class="simple-table">${medicalRows || `<div class="empty-state compact">暂无医疗记录。</div>`}</div>
+      </section>
+
+      <section class="detail-section">
+        <h3>工作范围与能力</h3>
+        <div class="skills">${(maid.duties || maid.skills || []).map((item) => `<span class="tag blue">${item}</span>`).join("")}</div>
+        <div class="skill-table maid-skill-table">
+          <div class="skill-row skill-head">
+            <span>工作范围</span>
+            <span>愿意</span>
+            <span>经验</span>
+            <span>年数</span>
+            <span>评分</span>
+            <span>备注</span>
+          </div>
+          ${skillRows || `<div class="empty-state compact">暂无技能评估。</div>`}
+        </div>
+      </section>
+
+      <section class="detail-section">
+        <h3>海外工作经历</h3>
+        <div class="history-row maid-history-row history-head">
+          <span>时间</span>
+          <span>国家</span>
+          <span>雇主</span>
+          <span>工作内容</span>
+        </div>
+        ${employmentRows || `<div class="empty-state compact">暂无海外工作经历。</div>`}
+      </section>
+
+      <section class="detail-section">
+        <h3>MOM 新加坡记录</h3>
+        <div class="history-row maid-history-row history-head">
+          <span>时间</span>
+          <span>雇主</span>
+          <span>行业</span>
+          <span>备注</span>
+        </div>
+        ${momRows || `<div class="empty-state compact">暂无 MOM 记录。</div>`}
+      </section>
+
+      <section class="detail-section">
+        <h3>面试与 Biodata 备注</h3>
+        <div class="profile-grid maid-fixed-grid">
+          ${detailFields([
+            ["评估方式", maid.evaluationMethods],
+            ["可面试方式", maid.interviewAvailability],
+            ["Biodata 备注", maid.biodataRemarks]
+          ])}
+        </div>
+      </section>
+    </article>
+  `;
+}
+
 function renderAdminMaids() {
   const workers = workersForCategory();
+  if (activeAdminCategory === "女佣" && activeMaidDetailId) {
+    const maid = maidById(activeMaidDetailId);
+    $("#adminMaidList").innerHTML = maid ? renderMaidDetail(maid) : `<div class="empty-state">没有找到这位女佣资料。</div>`;
+    return;
+  }
   $("#adminMaidList").innerHTML = workers.length
     ? workers
     .map(
-      (worker) => `
+      (worker) => {
+        const title = activeAdminCategory === "女佣"
+          ? `<button class="text-link row-title" type="button" data-open-maid-detail="${worker.id}">${worker.name}</button>`
+          : `<div class="row-title">${worker.name}</div>`;
+        return `
         <article class="detail-card">
           <div class="detail-head">
             <div class="profile-title">
@@ -1173,7 +1386,7 @@ function renderAdminMaids() {
                   : `<div class="profile-avatar">${worker.name.slice(0, 1)}</div>`
               }
               <div>
-                <div class="row-title">${worker.name}</div>
+                ${title}
                 <div class="row-sub">${worker.refNo} · ${worker.role} · ${worker.nationality} · ${worker.age} 岁</div>
               </div>
             </div>
@@ -1190,7 +1403,8 @@ function renderAdminMaids() {
           <p class="record-note">${worker.summary || ""}</p>
           <div class="skills">${(worker.skills || worker.duties || []).map((item) => `<span class="tag blue">${item}</span>`).join("")}</div>
         </article>
-      `
+      `;
+      }
     )
     .join("")
     : `<div class="empty-state">当前分类还没有人员。</div>`;
@@ -1549,6 +1763,7 @@ function bindEvents() {
     const button = event.target.closest("[data-admin-category][data-admin-tab]");
     if (!button) return;
     activeAdminCategory = button.dataset.adminCategory || "女佣";
+    activeMaidDetailId = "";
     $$(".admin-tab").forEach((item) => item.classList.remove("active-admin-tab"));
     $(`#${button.dataset.adminTab}`).classList.add("active-admin-tab");
     renderAdminCategoryTabs();
