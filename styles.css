@@ -427,6 +427,67 @@ textarea {
   border-top: 1px solid var(--line);
 }
 
+.legal-dialog {
+  width: min(920px, calc(100vw - 32px));
+  max-height: min(820px, calc(100vh - 32px));
+  display: grid;
+  grid-template-rows: auto 1fr;
+  overflow: hidden;
+}
+
+.legal-head {
+  align-items: center;
+  padding: 22px 24px;
+  border-bottom: 1px solid var(--line);
+}
+
+.legal-head h2,
+.legal-head p {
+  margin: 0;
+}
+
+.legal-body {
+  overflow: auto;
+  padding: 24px;
+}
+
+.legal-content {
+  display: grid;
+  gap: 14px;
+  color: var(--ink);
+}
+
+.legal-content h3,
+.legal-content p,
+.legal-content ul {
+  margin: 0;
+}
+
+.legal-content h3 {
+  margin-top: 10px;
+  color: var(--green);
+  font-size: 18px;
+}
+
+.legal-content p,
+.legal-content li {
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.legal-content ul {
+  display: grid;
+  gap: 8px;
+  padding-left: 20px;
+}
+
+.legal-updated {
+  margin-top: 10px !important;
+  color: var(--ink) !important;
+  font-weight: 800;
+}
+
 .maid-card,
 .metric,
 .list-item,

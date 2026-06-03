@@ -1197,7 +1197,7 @@ function renderFrontFooter() {
         </div>
         <div class="footer-col">
           <h3>Help</h3>
-          <a href="#front">Terms of Use</a>
+          <a href="#terms" data-open-terms>Terms of Use</a>
           <a href="#front">Privacy Policy</a>
           <a href="#front">Email Disclaimer</a>
         </div>
@@ -1227,6 +1227,67 @@ function renderFrontFooter() {
         <p>Registered office: 8 Burn Road #15-03 Trivex Singapore 369977</p>
       </div>
     </footer>
+  `;
+}
+
+function renderTermsOfUse() {
+  return `
+    <section class="legal-content">
+      <h3>Overview of Policy</h3>
+      <p>The following Terms and Conditions apply to your use of any website of Bybridge Consultancy Pte Ltd. Such terms should be read in conjunction with our Privacy Policy. By using this website, you agree to comply with these Terms and Conditions. If you do not agree with these terms then please do not use the website.</p>
+
+      <h3>Use of Website</h3>
+      <p>The purpose of this website is to provide you with our services and general information. You must not breach any term of our Acceptable Use Policy set out below.</p>
+
+      <h3>Acceptable Use Policy</h3>
+      <p>You agree to use this website only for lawful purposes in accordance with these terms and conditions and in a way that does not infringe the rights of, restrict or inhibit anyone else's use and enjoyment of this website. Prohibited behaviour includes harassing or causing distress or inconvenience to any person, transmitting obscene or offensive content or disrupting the normal flow of dialogue within this website.</p>
+      <p>You must not:</p>
+      <ul>
+        <li>send, upload, display or disseminate or otherwise make available any unlawful, discriminatory, harassing, libelous, defamatory, abusive, threatening, harmful, offensive, obscene, tortious or otherwise objectionable material or otherwise breach any laws;</li>
+        <li>display, upload or transmit material that encourages conduct that may constitute a criminal offence, result in civil liability or otherwise may breach any applicable laws, regulations or code of practice;</li>
+        <li>interfere with any other person's privacy or use or enjoyment of this website;</li>
+        <li>fraudulently or otherwise misrepresent yourself to be another person or a representative of another entity or fraudulently or otherwise misrepresent that you have an affiliation with a person, entity or group;</li>
+        <li>mislead or deceive Bybridge, its representatives and any third parties who may rely on the information provided by you, by providing inaccurate or false information, which includes omissions of information;</li>
+        <li>disguise the origin of any material transmitted through the services provided by the website whether by forging message headers or otherwise manipulating normal identification information;</li>
+        <li>send, upload or otherwise make available material which infringes any intellectual or industrial property right of any person, such as copyright, trademarks, patents, trade secrets, or other proprietary rights of any party;</li>
+        <li>send, upload, display or disseminate or otherwise make available material containing or associated with spam, junk mail, advertising for pyramid schemes, chain letters, virus warnings without first confirming the authenticity of the warning, or any other form of unauthorised advertising or promotional material;</li>
+        <li>send, upload or otherwise make available material containing viruses, trojans or any other material designed to impair, destroy or interrupt the performance of any hardware or software;</li>
+        <li>obtain unauthorised access to or interfere with the performance of the servers which provide the services or any servers on any associated networks or otherwise fail to comply with any policies or procedures relating to the use of those servers;</li>
+        <li>collect, whether aggregated or otherwise, data about other users of the services.</li>
+      </ul>
+
+      <h3>Links to or from Other Sites</h3>
+      <p>This website may include links to other websites on the internet which are owned, published and maintained by third parties. Please note that these websites are not under the control of Bybridge Consultancy Pte Ltd and therefore Bybridge Consultancy Pte Ltd cannot assume any responsibility for the content of such linked websites.</p>
+
+      <h3>Aggregate Information</h3>
+      <p>We may gather information and statistics collectively about all visitors to this site, which may include the information supplied by you and will help us understand our users, thereby creating a better recruitment process. We will not disclose individual names or identifying information. All data will be in aggregate form only. We believe this information helps us determine what is most beneficial for our users and how we can continually improve our online service. We may share this kind of aggregate data with selected third parties to assist with these purposes. Personal data is processed by us in accordance with our Privacy Policy.</p>
+
+      <h3>Disclaimer</h3>
+      <p>This website's content, including the information and material, names, images, pictures, logos and icons regarding or relating to Bybridge Consultancy Pte Ltd, its products and services or to third party products and services, is provided as a general guide only on an "as is" and on an "is available" basis. We make no representations or any kind of warranty whatsoever, whether express or implied by law, to the extent permitted by law, including the implied warranties of satisfactory quality, fitness for a particular purpose, non-infringement, compatibility, security, currency, completeness, adequacy, suitability and accuracy.</p>
+      <p>Under no circumstances will Bybridge Consultancy Pte Ltd be liable for any of the following losses or damage, whether such losses were foreseen, foreseeable, known or otherwise:</p>
+      <ul>
+        <li>loss of data;</li>
+        <li>loss of revenue or anticipated profits;</li>
+        <li>loss of business;</li>
+        <li>loss of opportunity;</li>
+        <li>loss of goodwill or injury to reputation;</li>
+        <li>losses suffered by third parties; or</li>
+        <li>any indirect, consequential, special or exemplary damages arising from the use of this website regardless of the form of action.</li>
+      </ul>
+      <p>Bybridge Consultancy Pte Ltd does not warrant that functions contained in this website's content will be uninterrupted or error free, that defects will be corrected, or that this website or the server that makes it available is free of bugs, viruses, worms, trojans or any other computer code that may adversely affect any communications.</p>
+
+      <h3>Submitting Data to Our Website</h3>
+      <p>If you upload your CV or apply for a job on our websites, you must ensure that the details provided by you at that or at any other time are accurate, up to date and complete.</p>
+      <p>You must immediately update and inform us of any changes to your information, whether by making relevant changes to your CV or by updating your personal details, so that we can communicate with you effectively and provide accurate, up to date information to potential employers.</p>
+      <p>We accept no liability for any unauthorised use of logins and passwords. In order to prevent such fraud, you must keep your password confidential and must not disclose it or share it with anyone. If you know or suspect that someone else knows your password, you should notify us immediately.</p>
+      <p>By using this site, you are solely responsible for any and all occurrences, which includes maintaining up-to-date, correct, accurate and complete information and uploading materials which do not breach or infringe the rights of any third party.</p>
+      <p>If we have reason to believe that there is likely to be a breach of security or misuse of our website, we may require you to change your password or we may suspend your account.</p>
+      <p>We may suspend or cancel your account immediately at our reasonable discretion or if you breach any of your obligations under these Terms and Conditions or the Privacy Policy.</p>
+      <p>The suspension or cancellation of your account and your right to use the website shall not affect either party's statutory rights or liabilities.</p>
+      <p>We may change these Terms and Conditions at our discretion and without notice. Any updates and changes will be posted to this page.</p>
+
+      <p class="legal-updated">Updated: June 2023</p>
+    </section>
   `;
 }
 
@@ -2076,6 +2137,18 @@ function bindEvents() {
     if (!tab) return;
     activeFrontCategory = tab.dataset.category || "女佣";
     renderFront();
+  });
+
+  document.addEventListener("click", (event) => {
+    const termsLink = event.target.closest("[data-open-terms]");
+    if (!termsLink) return;
+    event.preventDefault();
+    $("#termsBody").innerHTML = renderTermsOfUse();
+    $("#termsDialog").showModal();
+  });
+
+  $("#termsClose").addEventListener("click", () => {
+    $("#termsDialog").close();
   });
 
   ["#nationalityFilter", "#experienceFilter", "#skillFilter"].forEach((selector) => {
