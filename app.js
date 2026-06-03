@@ -256,7 +256,7 @@ const seed = {
       { step: "Training", date: "2026-06-08", status: "进行中", note: "Elderly care training" },
       { step: "Arrival in Singapore", date: "2026-06-14", status: "待处理", note: "Waiting for flight confirmation" },
       { step: "Medical Check", date: "2026-06-16", status: "待处理", note: "To arrange after arrival" },
-      { step: "Deployment Training", date: "2026-06-18", status: "待处理", note: "Household rules briefing" },
+      { step: "Pre-deployment Training", date: "2026-06-18", status: "待处理", note: "Household rules briefing" },
       { step: "Deployment (Sent to employer's house and start working)", date: "2026-12-18", status: "待处理", note: "Final deployment stage" }
     ],
     m2: [
@@ -463,7 +463,14 @@ const defaultTimelineSteps = [
 ];
 
 function normalizeTimelineStage(item) {
-  if (!item || !["Periodic Medical Check", "Deployment"].includes(item.step)) return item;
+  if (!item) return item;
+  if (item.step === "Deployment Training") {
+    return {
+      ...item,
+      step: "Pre-deployment Training"
+    };
+  }
+  if (!["Periodic Medical Check", "Deployment"].includes(item.step)) return item;
   return {
     ...item,
     step: "Deployment (Sent to employer's house and start working)",
@@ -472,6 +479,9 @@ function normalizeTimelineStage(item) {
 }
 
 function normalizeDocumentStage(stage) {
+  if (stage === "Deployment Training") {
+    return "Pre-deployment Training";
+  }
   if (stage === "Periodic Medical Check" || stage === "Deployment") {
     return "Deployment (Sent to employer's house and start working)";
   }
