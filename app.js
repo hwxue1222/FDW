@@ -913,6 +913,13 @@ if (previewDialog) {
   });
 }
 
+const recordDialog = $("#recordDialog");
+if (recordDialog) {
+  recordDialog.addEventListener("close", () => {
+    $("#recordForm").onsubmit = null;
+  });
+}
+
 document.addEventListener("click", (event) => {
   const target = event.target.closest(".download-preview");
   if (!target) return;
@@ -2442,6 +2449,14 @@ function openDialog(title, fields, onSubmit) {
 }
 
 function bindEvents() {
+  document.addEventListener("click", (event) => {
+    const closeButton = event.target.closest("[data-dialog-close]");
+    if (!closeButton) return;
+    event.preventDefault();
+    $("#recordForm").onsubmit = null;
+    $("#recordDialog").close();
+  });
+
   $$(".mode-switch button").forEach((button) => {
     button.addEventListener("click", () => {
       $$(".mode-switch button").forEach((item) => item.classList.remove("active"));

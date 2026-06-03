@@ -191,12 +191,12 @@
       <form method="dialog" id="recordForm">
         <div class="dialog-head">
           <h2 id="dialogTitle">Add</h2>
-          <button value="cancel" class="icon-btn" aria-label="Close">×</button>
+          <button type="button" value="cancel" class="icon-btn" data-dialog-close aria-label="Close">×</button>
         </div>
         <div id="dialogFields" class="form-grid"></div>
         <menu>
-          <button id="dialogCancelBtn" value="cancel" class="secondary-btn">Cancel</button>
-          <button id="dialogSubmit" value="default" class="primary-btn">Save</button>
+          <button id="dialogCancelBtn" type="button" value="cancel" class="secondary-btn" data-dialog-close>Cancel</button>
+          <button id="dialogSubmit" type="submit" value="default" class="primary-btn">Save</button>
         </menu>
       </form>
     </dialog>
