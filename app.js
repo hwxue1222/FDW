@@ -533,7 +533,7 @@ const state = normalizeState(JSON.parse(localStorage.getItem("maidAgencyState"))
 let activeFrontCategory = "女佣";
 let activeAdminCategory = "女佣";
 let activeMaidDetailId = "";
-let currentLanguage = localStorage.getItem("bybridgeLanguage") || "zh";
+let currentLanguage = localStorage.getItem("bybridgeLanguage") || "en";
 
 const save = () => localStorage.setItem("maidAgencyState", JSON.stringify(state));
 const $ = (selector) => document.querySelector(selector);
@@ -563,7 +563,17 @@ const uiText = {
     yearsValue: (years) => `${years} 年`,
     status: {
       可预约: "可预约",
-      面试中: "面试中"
+      面试中: "面试中",
+      已完成: "已完成",
+      进行中: "进行中",
+      待处理: "待处理",
+      已签署: "已签署",
+      待签署: "待签署",
+      已付款: "已付款",
+      待付款: "待付款",
+      未到期: "未到期",
+      跟进中: "跟进中",
+      培训中: "培训中"
     }
   },
   en: {
@@ -589,7 +599,17 @@ const uiText = {
     yearsValue: (years) => `${years} years`,
     status: {
       可预约: "Available",
-      面试中: "Interviewing"
+      面试中: "Interviewing",
+      已完成: "Completed",
+      进行中: "In Progress",
+      待处理: "Pending",
+      已签署: "Signed",
+      待签署: "Pending Signature",
+      已付款: "Paid",
+      待付款: "Payment Due",
+      未到期: "Not Due",
+      跟进中: "Following Up",
+      培训中: "Training"
     }
   }
 };
@@ -607,8 +627,12 @@ function statusLabel(status) {
   return txt().status[status] || status;
 }
 
+function uiLabel(en, zh) {
+  return currentLanguage === "zh" ? zh : en;
+}
+
 function displayValue(value, fallback = "-") {
-  if (Array.isArray(value)) return value.length ? value.join("、") : fallback;
+  if (Array.isArray(value)) return value.length ? value.join(currentLanguage === "zh" ? "、" : ", ") : fallback;
   if (value === 0) return "0";
   return value || fallback;
 }
@@ -635,6 +659,12 @@ function renderLanguageLabels() {
   $("#nationalityLabel").textContent = txt().nationality;
   $("#experienceLabel").textContent = txt().experience;
   $("#skillLabel").textContent = txt().skill;
+  $("#timelineWorkerLabel").textContent = uiLabel("Select Worker", "选择人员");
+  $("#processClientLabel").textContent = uiLabel("Client", "客户");
+  $("#dialogCancelBtn").textContent = uiLabel("Cancel", "取消");
+  $("#dialogSubmit").textContent = uiLabel("Save", "保存");
+  $("#previewTitle").textContent = uiLabel("Preview", "预览");
+  $("#previewOpen").textContent = uiLabel("Open in New Tab", "新标签页打开");
   $$("#languageSwitch button").forEach((button) => {
     button.classList.toggle("active", button.dataset.lang === currentLanguage);
   });
@@ -665,7 +695,7 @@ function withCacheBust(url) {
 function openPdfPreview(url, title) {
   if (!previewDialog || !previewFrame) return;
   const previewUrl = withCacheBust(url);
-  if (previewTitle) previewTitle.textContent = title || "预览";
+  if (previewTitle) previewTitle.textContent = title || uiLabel("Preview", "预览");
   if (previewOpen) previewOpen.href = previewUrl || "#";
   previewFrame.src = previewUrl;
   previewDialog.showModal();
@@ -693,7 +723,7 @@ document.addEventListener("click", (event) => {
   const target = event.target.closest(".download-preview");
   if (!target) return;
   const url = target.getAttribute("data-url") || "";
-  const title = target.getAttribute("data-title") || target.textContent || "预览";
+  const title = target.getAttribute("data-title") || target.textContent || uiLabel("Preview", "预览");
   if (!url) return;
   openPdfPreview(url, title);
 });
@@ -1083,11 +1113,11 @@ function renderFront() {
 
 function renderAdminCategoryTabs() {
   const modules = [
-    { id: "maids", label: "人员管理" },
-    { id: "clients", label: "客户管理" },
-    { id: "process", label: "雇佣流程" },
-    { id: "documents", label: "签署文件" },
-    { id: "downloads", label: "表格下载" }
+    { id: "maids", label: uiLabel("Personnel Management", "人员管理") },
+    { id: "clients", label: uiLabel("Client Management", "客户管理") },
+    { id: "process", label: uiLabel("Employment Process", "雇佣流程") },
+    { id: "documents", label: uiLabel("Signed Documents", "签署文件") },
+    { id: "downloads", label: uiLabel("Form Downloads", "表格下载") }
   ];
   const activeTab = document.querySelector(".admin-tab.active-admin-tab")?.id || "maids";
   $("#adminCategoryTabs").innerHTML = Object.keys(categoryMeta)
@@ -1115,12 +1145,13 @@ function renderAdminCategoryTabs() {
     })
     .join("");
   const title = localized(categoryMeta[activeAdminCategory].title);
-  $("#personnelTitle").textContent = `${title} · 人员管理`;
-  $("#clientTitle").textContent = `${title} · 客户管理`;
-  $("#processTitle").textContent = `${title} · 雇佣流程`;
-  $("#documentTitle").textContent = `${title} · 签署文件`;
-  $("#downloadTitle").textContent = `${title} · 表格下载`;
-  $("#addMaidBtn").textContent = `新增${title}人员`;
+  $("#personnelTitle").textContent = `${title} · ${uiLabel("Personnel Management", "人员管理")}`;
+  $("#clientTitle").textContent = `${title} · ${uiLabel("Client Management", "客户管理")}`;
+  $("#processTitle").textContent = `${title} · ${uiLabel("Employment Process", "雇佣流程")}`;
+  $("#documentTitle").textContent = `${title} · ${uiLabel("Signed Documents", "签署文件")}`;
+  $("#downloadTitle").textContent = `${title} · ${uiLabel("Form Downloads", "表格下载")}`;
+  $("#addMaidBtn").textContent = uiLabel(`Add ${title} Worker`, `新增${title}人员`);
+  $("#uploadBiodataText").textContent = uiLabel("Upload Biodata PDF", "上传 Biodata PDF");
   const upload = $("#maidPdfInput")?.closest(".upload-btn");
   if (upload) upload.style.display = activeAdminCategory === "女佣" ? "inline-flex" : "none";
 }
@@ -1184,8 +1215,8 @@ function renderDownloads() {
             <div class="row-sub">${localized(categoryMeta[activeAdminCategory].title)} · PDF Template</div>
           </div>
           <div class="row-actions">
-            <button type="button" class="mini-btn download-preview" data-url="${template.url}" data-title="${template.title}">预览</button>
-            <a class="mini-link" href="${template.url}" target="_blank" rel="noreferrer">下载</a>
+            <button type="button" class="mini-btn download-preview" data-url="${template.url}" data-title="${template.title}">${uiLabel("Preview", "预览")}</button>
+            <a class="mini-link" href="${template.url}" target="_blank" rel="noreferrer">${uiLabel("Download", "下载")}</a>
           </div>
         </article>
       `
@@ -1253,8 +1284,8 @@ function renderMaidDetail(maid) {
   return `
     <article class="detail-card maid-detail-card">
       <div class="detail-toolbar">
-        <button class="mini-btn" type="button" data-back-maid-list>返回人员列表</button>
-        <span class="tag ${maid.status === "面试中" ? "amber" : ""}">${maid.status}</span>
+        <button class="mini-btn" type="button" data-back-maid-list>${uiLabel("Back to Personnel List", "返回人员列表")}</button>
+        <span class="tag ${maid.status === "面试中" ? "amber" : ""}">${statusLabel(maid.status)}</span>
       </div>
       <div class="detail-head">
         <div class="profile-title">
@@ -1265,64 +1296,64 @@ function renderMaidDetail(maid) {
           }
           <div>
             <h3>${maid.name}</h3>
-            <div class="row-sub">${maid.refNo} · Domestic Worker · ${maid.nationality} · ${maid.age} 岁</div>
+            <div class="row-sub">${maid.refNo} · Domestic Worker · ${maid.nationality} · ${txt().ageValue(maid.age)}</div>
           </div>
         </div>
       </div>
 
       <section class="detail-section">
-        <h3>固定个人信息标签</h3>
+        <h3>${uiLabel("Fixed Personal Information Labels", "固定个人信息标签")}</h3>
         <div class="profile-grid maid-fixed-grid">
           ${detailFields([
-            ["姓名", maid.name],
-            ["编号", maid.refNo],
-            ["国籍", maid.nationality],
-            ["出生日期", maid.dateOfBirth],
-            ["年龄", maid.age ? `${maid.age} 岁` : ""],
-            ["宗教", maid.religion],
-            ["婚姻状况", maid.maritalStatus],
-            ["学历", maid.education],
-            ["身高 / 体重", heightWeightValue(maid)],
-            ["出生 / 家乡城市", maid.originCity],
-            ["家庭地址", maid.homeAddress],
-            ["兄弟姐妹人数", maid.siblings],
-            ["曾工作国家", maid.workedCountries],
-            ["薪资", maid.salary ? `S$${maid.salary}` : ""],
-            ["休息日", maid.offDay],
-            ["语言", maid.languages]
+            [uiLabel("Name", "姓名"), maid.name],
+            [uiLabel("Reference No.", "编号"), maid.refNo],
+            [uiLabel("Nationality", "国籍"), maid.nationality],
+            [uiLabel("Date of Birth", "出生日期"), maid.dateOfBirth],
+            [uiLabel("Age", "年龄"), maid.age ? txt().ageValue(maid.age) : ""],
+            [uiLabel("Religion", "宗教"), maid.religion],
+            [uiLabel("Marital Status", "婚姻状况"), maid.maritalStatus],
+            [uiLabel("Education", "学历"), maid.education],
+            [uiLabel("Height / Weight", "身高 / 体重"), heightWeightValue(maid)],
+            [uiLabel("Birth / Home City", "出生 / 家乡城市"), maid.originCity],
+            [uiLabel("Home Address", "家庭地址"), maid.homeAddress],
+            [uiLabel("No. of Siblings", "兄弟姐妹人数"), maid.siblings],
+            [uiLabel("Worked Countries", "曾工作国家"), maid.workedCountries],
+            [uiLabel("Salary", "薪资"), maid.salary ? `S$${maid.salary}` : ""],
+            [uiLabel("Rest Day", "休息日"), maid.offDay],
+            [uiLabel("Languages", "语言"), maid.languages]
           ])}
         </div>
       </section>
 
       <section class="detail-section">
-        <h3>证件与准证信息</h3>
+        <h3>${uiLabel("Passport and Work Permit Information", "证件与准证信息")}</h3>
         <div class="profile-grid maid-fixed-grid">
           ${detailFields([
-            ["护照号码", maid.passportNo],
+            [uiLabel("Passport No.", "护照号码"), maid.passportNo],
             ["FIN", maid.fin],
             ["WP No.", maid.wpNo],
-            ["回国机场", maid.repatriationAirport]
+            [uiLabel("Repatriation Airport", "回国机场"), maid.repatriationAirport]
           ])}
         </div>
       </section>
 
       <section class="detail-section">
-        <h3>健康、饮食与限制</h3>
+        <h3>${uiLabel("Health, Food Handling and Restrictions", "健康、饮食与限制")}</h3>
         <div class="profile-grid maid-fixed-grid">
           ${detailFields([
-            ["医疗状态", maid.medicalStatus],
-            ["饮食 / 食物处理", maid.foodHandling],
-            ["过敏 / 害怕 / 限制", maid.allergies]
+            [uiLabel("Medical Status", "医疗状态"), maid.medicalStatus],
+            [uiLabel("Food Handling", "饮食 / 食物处理"), maid.foodHandling],
+            [uiLabel("Allergies / Fears / Restrictions", "过敏 / 害怕 / 限制"), maid.allergies]
           ])}
         </div>
-        <div class="simple-table">${medicalRows || `<div class="empty-state compact">暂无医疗记录。</div>`}</div>
+        <div class="simple-table">${medicalRows || `<div class="empty-state compact">${uiLabel("No medical history yet.", "暂无医疗记录。")}</div>`}</div>
       </section>
 
       <section class="detail-section">
-        <h3>工作范围与能力</h3>
+        <h3>${uiLabel("Scope of Work and Skills", "工作范围与能力")}</h3>
         <div class="skills">${(maid.duties || maid.skills || []).map((item) => `<span class="tag blue">${item}</span>`).join("")}</div>
         <div class="evaluation-methods">
-          <div class="row-sub">Method of evaluation of skills（多选）</div>
+          <div class="row-sub">${uiLabel("Method of evaluation of skills (multiple choice)", "Method of evaluation of skills（多选）")}</div>
           <div class="evaluation-grid">
             ${skillEvaluationMethodOptions
               .map(
@@ -1338,45 +1369,45 @@ function renderMaidDetail(maid) {
         </div>
         <div class="skill-table maid-skill-table">
           <div class="skill-row skill-head">
-            <span>工作范围</span>
-            <span>愿意</span>
-            <span>经验</span>
-            <span>年数</span>
-            <span class="rating-head">评分 <small>1 Poor - 5 Excellent</small></span>
-            <span>备注</span>
+            <span>${uiLabel("Scope of Work", "工作范围")}</span>
+            <span>${uiLabel("Willing", "愿意")}</span>
+            <span>${uiLabel("Experience", "经验")}</span>
+            <span>${uiLabel("Years", "年数")}</span>
+            <span class="rating-head">${uiLabel("Rating", "评分")} <small>1 Poor - 5 Excellent</small></span>
+            <span>${uiLabel("Remarks", "备注")}</span>
           </div>
-          ${skillRows || `<div class="empty-state compact">暂无技能评估。</div>`}
+          ${skillRows || `<div class="empty-state compact">${uiLabel("No skill assessment yet.", "暂无技能评估。")}</div>`}
         </div>
       </section>
 
       <section class="detail-section">
-        <h3>海外工作经历</h3>
+        <h3>${uiLabel("Overseas Employment History", "海外工作经历")}</h3>
         <div class="history-row maid-history-row history-head">
-          <span>时间</span>
-          <span>国家</span>
-          <span>雇主</span>
-          <span>工作内容</span>
+          <span>${uiLabel("Period", "时间")}</span>
+          <span>${uiLabel("Country", "国家")}</span>
+          <span>${uiLabel("Employer", "雇主")}</span>
+          <span>${uiLabel("Duties", "工作内容")}</span>
         </div>
-        ${employmentRows || `<div class="empty-state compact">暂无海外工作经历。</div>`}
+        ${employmentRows || `<div class="empty-state compact">${uiLabel("No overseas employment history yet.", "暂无海外工作经历。")}</div>`}
       </section>
 
       <section class="detail-section">
-        <h3>MOM 新加坡记录</h3>
+        <h3>${uiLabel("MOM Singapore Records", "MOM 新加坡记录")}</h3>
         <div class="history-row maid-history-row history-head">
-          <span>时间</span>
-          <span>雇主</span>
-          <span>行业</span>
-          <span>备注</span>
+          <span>${uiLabel("Period", "时间")}</span>
+          <span>${uiLabel("Employer", "雇主")}</span>
+          <span>${uiLabel("Industry", "行业")}</span>
+          <span>${uiLabel("Remarks", "备注")}</span>
         </div>
-        ${momRows || `<div class="empty-state compact">暂无 MOM 记录。</div>`}
+        ${momRows || `<div class="empty-state compact">${uiLabel("No MOM records yet.", "暂无 MOM 记录。")}</div>`}
       </section>
 
       <section class="detail-section">
-        <h3>面试与 Biodata 备注</h3>
+        <h3>${uiLabel("Interview Availability and Biodata Remarks", "面试与 Biodata 备注")}</h3>
         <div class="profile-grid maid-fixed-grid">
           ${detailFields([
-            ["可面试方式", maid.interviewAvailability],
-            ["Biodata 备注", maid.biodataRemarks]
+            [uiLabel("Interview Availability", "可面试方式"), maid.interviewAvailability],
+            [uiLabel("Biodata Remarks", "Biodata 备注"), maid.biodataRemarks]
           ])}
         </div>
       </section>
@@ -1409,18 +1440,18 @@ function renderAdminMaids() {
               }
               <div>
                 ${title}
-                <div class="row-sub">${worker.refNo} · ${worker.role} · ${worker.nationality} · ${worker.age} 岁</div>
+                <div class="row-sub">${worker.refNo} · ${worker.role} · ${worker.nationality} · ${txt().ageValue(worker.age)}</div>
               </div>
             </div>
-            <span class="tag ${worker.status === "面试中" ? "amber" : ""}">${worker.status}</span>
+            <span class="tag ${worker.status === "面试中" ? "amber" : ""}">${statusLabel(worker.status)}</span>
           </div>
           <div class="profile-grid">
-            <div><span>分类</span><strong>${localized(categoryMeta[worker.category].title)}</strong></div>
-            <div><span>编号</span><strong>${worker.refNo}</strong></div>
-            <div><span>职位</span><strong>${worker.role}</strong></div>
-            <div><span>经验</span><strong>${worker.experience} 年</strong></div>
-            <div><span>薪资</span><strong>${worker.salary}</strong></div>
-            <div><span>语言</span><strong>${worker.languages}</strong></div>
+            <div><span>${uiLabel("Category", "分类")}</span><strong>${localized(categoryMeta[worker.category].title)}</strong></div>
+            <div><span>${uiLabel("Reference No.", "编号")}</span><strong>${worker.refNo}</strong></div>
+            <div><span>${uiLabel("Role", "职位")}</span><strong>${worker.role}</strong></div>
+            <div><span>${uiLabel("Experience", "经验")}</span><strong>${txt().yearsValue(worker.experience)}</strong></div>
+            <div><span>${uiLabel("Salary", "薪资")}</span><strong>${worker.salary}</strong></div>
+            <div><span>${uiLabel("Languages", "语言")}</span><strong>${worker.languages}</strong></div>
           </div>
           <p class="record-note">${worker.summary || ""}</p>
           <div class="skills">${(worker.skills || worker.duties || []).map((item) => `<span class="tag blue">${item}</span>`).join("")}</div>
@@ -1429,7 +1460,7 @@ function renderAdminMaids() {
       }
     )
     .join("")
-    : `<div class="empty-state">当前分类还没有人员。</div>`;
+    : `<div class="empty-state">${uiLabel("No personnel in this category yet.", "当前分类还没有人员。")}</div>`;
 }
 
 function renderClients() {
@@ -1446,9 +1477,9 @@ function renderClients() {
             <div class="detail-head">
               <div>
                 <div class="row-title">${client.name}</div>
-                <div class="row-sub">${client.phone} · 需求：${client.need} · 预算 S$${client.budget}</div>
+                <div class="row-sub">${client.phone} · ${uiLabel("Need", "需求")}：${client.need} · ${uiLabel("Budget", "预算")} S$${client.budget}</div>
               </div>
-              <span class="tag blue">已收 ${formatMoney(paid)} / ${formatMoney(total)}</span>
+              <span class="tag blue">${uiLabel("Received", "已收")} ${formatMoney(paid)} / ${formatMoney(total)}</span>
             </div>
             <div class="hire-list">
               ${(client.hires || [])
@@ -1458,9 +1489,9 @@ function renderClients() {
                       <div class="hire-head">
                         <div>
                           <strong>${workerName(hire.maidId)}</strong>
-                          <span>${hire.contractNo} · ${hire.status} · 顾问 ${hire.consultant}</span>
+                          <span>${hire.contractNo} · ${statusLabel(hire.status)} · ${uiLabel("Consultant", "顾问")} ${hire.consultant}</span>
                         </div>
-                        <span class="tag ${hire.status === "面试中" ? "amber" : ""}">预计上岗 ${hire.startDate}</span>
+                        <span class="tag ${hire.status === "面试中" ? "amber" : ""}">${uiLabel("Expected Start", "预计上岗")} ${hire.startDate}</span>
                       </div>
                       <div class="payment-table">
                         ${(hire.payments || [])
@@ -1470,7 +1501,7 @@ function renderClients() {
                                 <span>${index + 1}. ${payment.stage}</span>
                                 <strong>${formatMoney(payment.amount)}</strong>
                                 <span>${payment.dueDate}</span>
-                                <span class="tag ${payment.status === "已付款" ? "" : payment.status === "待付款" ? "red" : "amber"}">${payment.status}</span>
+                                <span class="tag ${payment.status === "已付款" ? "" : payment.status === "待付款" ? "red" : "amber"}">${statusLabel(payment.status)}</span>
                               </div>
                             `
                           )
@@ -1486,7 +1517,7 @@ function renderClients() {
       }
     )
     .join("")
-    : `<div class="empty-state">当前分类还没有客户。</div>`;
+    : `<div class="empty-state">${uiLabel("No clients in this category yet.", "当前分类还没有客户。")}</div>`;
 }
 
 function renderTimelineSelector() {
@@ -1508,7 +1539,7 @@ function renderTimeline() {
   const selected = $("#timelineMaidSelect").value;
   const maidId = workersForCategory().some((worker) => worker.id === selected) ? selected : workersForCategory()[0]?.id;
   if (!maidId) {
-    $("#timelineList").innerHTML = `<div class="empty-state">当前分类还没有可管理的人员。</div>`;
+    $("#timelineList").innerHTML = `<div class="empty-state">${uiLabel("No manageable personnel in this category yet.", "当前分类还没有可管理的人员。")}</div>`;
     $("#processClientSelect").innerHTML = "";
     return;
   }
@@ -1526,7 +1557,7 @@ function renderTimeline() {
             </div>
             ${renderStageDocuments(maidId, item.step)}
           </div>
-          <span class="tag ${statusClass(item.status)}">${item.status}</span>
+          <span class="tag ${statusClass(item.status)}">${statusLabel(item.status)}</span>
         </div>
       `
     )
@@ -1549,13 +1580,13 @@ function renderStageDocuments(maidId, stage) {
           <div class="stage-package">
             <div>
               <div class="row-title">${doc.name}</div>
-              <div class="row-sub">${clientById(doc.clientId)?.name || "未指定客户"} · ${files.length} 个文件 · 一个签署链接</div>
-              <div class="merge-preview">已自动带入：客户 ${clientById(doc.clientId)?.name || "-"} / 人员 ${workerName(doc.maidId)}</div>
+              <div class="row-sub">${clientById(doc.clientId)?.name || uiLabel("Unassigned client", "未指定客户")} · ${files.length} ${uiLabel("file(s)", "个文件")} · ${uiLabel("one signing link", "一个签署链接")}</div>
+              <div class="merge-preview">${uiLabel("Auto-filled", "已自动带入")}：${uiLabel("Client", "客户")} ${clientById(doc.clientId)?.name || "-"} / ${uiLabel("Worker", "人员")} ${workerName(doc.maidId)}</div>
               <div class="file-chip-list">${files.map((file) => `<span class="file-chip">${file.fileName}</span>`).join("")}</div>
             </div>
-            <span class="tag ${signed ? "" : "red"}">${doc.status}</span>
-            <button class="mini-btn" data-copy-link="${doc.id}">复制链接</button>
-            <a class="mini-link" href="#sign=${doc.id}" target="_blank">打开签署</a>
+            <span class="tag ${signed ? "" : "red"}">${statusLabel(doc.status)}</span>
+            <button class="mini-btn" data-copy-link="${doc.id}">${uiLabel("Copy Link", "复制链接")}</button>
+            <a class="mini-link" href="#sign=${doc.id}" target="_blank">${uiLabel("Open Signing", "打开签署")}</a>
           </div>
         `;
       })
@@ -1564,19 +1595,19 @@ function renderStageDocuments(maidId, stage) {
     <div class="stage-documents">
       <div class="stage-form-picker">
         <label>
-          选择需要填写的文件
+          ${uiLabel("Select Document to Fill", "选择需要填写的文件")}
           <select data-template-select="${stage}">
             ${templateOptions}
           </select>
         </label>
-        <button class="primary-btn" type="button" data-send-template="${stage}">填写完毕，发送链接给客户签名</button>
+        <button class="primary-btn" type="button" data-send-template="${stage}">${uiLabel("Completed, Send Link to Client for Signature", "填写完毕，发送链接给客户签名")}</button>
       </div>
       <label class="stage-dropzone" data-stage="${stage}">
         <input type="file" data-stage-input="${stage}" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" multiple />
-        <strong>也可以拖入已填写表格到“${stage}”</strong>
-        <span>系统会整合成一个签署包，并生成同一个客户签署链接</span>
+        <strong>${uiLabel(`You can also drag completed forms into "${stage}"`, `也可以拖入已填写表格到“${stage}”`)}</strong>
+        <span>${uiLabel("The system will merge them into one signing package and generate one client signing link.", "系统会整合成一个签署包，并生成同一个客户签署链接")}</span>
       </label>
-      ${docList || `<div class="empty-state">这个节点还没有签署文件。</div>`}
+      ${docList || `<div class="empty-state">${uiLabel("No signing documents in this stage yet.", "这个节点还没有签署文件。")}</div>`}
     </div>
   `;
 }
@@ -1602,22 +1633,22 @@ function renderDocuments() {
         <div class="table-row">
           <div>
             <div class="row-title">${doc.name}</div>
-            <div class="row-sub">${doc.stage} · 发送 ${doc.sentAt} · ${doc.fileName}</div>
+            <div class="row-sub">${doc.stage} · ${uiLabel("Sent", "发送")} ${doc.sentAt} · ${doc.fileName}</div>
           </div>
-          <div>${clientById(doc.clientId)?.name || "未指定客户"} / ${workerName(doc.maidId)}</div>
+          <div>${clientById(doc.clientId)?.name || uiLabel("Unassigned client", "未指定客户")} / ${workerName(doc.maidId)}</div>
           <div>
-            <span class="tag ${signed ? "" : "red"}">${doc.status}</span>
-            <span class="tag ${doc.copySent ? "" : "amber"}">${doc.copySent ? "副本已发送" : "等待副本"}</span>
+            <span class="tag ${signed ? "" : "red"}">${statusLabel(doc.status)}</span>
+            <span class="tag ${doc.copySent ? "" : "amber"}">${doc.copySent ? uiLabel("Copy Sent", "副本已发送") : uiLabel("Waiting Copy", "等待副本")}</span>
           </div>
           <div class="row-actions">
-            <a class="mini-link" href="#sign=${doc.id}" target="_blank">签署链接</a>
-            <button class="mini-btn" data-sign-doc="${doc.id}" ${signed ? "disabled" : ""}>标记已签</button>
+            <a class="mini-link" href="#sign=${doc.id}" target="_blank">${uiLabel("Signing Link", "签署链接")}</a>
+            <button class="mini-btn" data-sign-doc="${doc.id}" ${signed ? "disabled" : ""}>${uiLabel("Mark Signed", "标记已签")}</button>
           </div>
         </div>
       `;
     })
     .join("")
-    : `<div class="empty-state">当前分类还没有已发送的签署文件。</div>`;
+    : `<div class="empty-state">${uiLabel("No sent signing documents in this category yet.", "当前分类还没有已发送的签署文件。")}</div>`;
 }
 
 function renderSignaturePortal() {
@@ -1638,7 +1669,7 @@ function renderSignaturePortal() {
 
   const doc = documentById(docId);
   if (!doc) {
-    $("#signatureContent").innerHTML = `<div class="detail-card"><h3>链接无效</h3><p>找不到这份待签文件。</p></div>`;
+    $("#signatureContent").innerHTML = `<div class="detail-card"><h3>${uiLabel("Invalid Link", "链接无效")}</h3><p>${uiLabel("This signing document could not be found.", "找不到这份待签文件。")}</p></div>`;
     return;
   }
   const client = clientById(doc.clientId);
@@ -1652,33 +1683,33 @@ function renderSignaturePortal() {
           <div class="row-title">${doc.name}</div>
           <div class="row-sub">${doc.fileName} · ${doc.stage}</div>
         </div>
-        <span class="tag ${signed ? "" : "red"}">${doc.status}</span>
+        <span class="tag ${signed ? "" : "red"}">${statusLabel(doc.status)}</span>
       </div>
       <div class="profile-grid">
-        <div><span>客户</span><strong>${client?.name || "-"}</strong></div>
-        <div><span>人员</span><strong>${worker?.name || "-"}</strong></div>
-        <div><span>发送日期</span><strong>${doc.sentAt}</strong></div>
-        <div><span>签署日期</span><strong>${doc.signedAt || "待签署"}</strong></div>
+        <div><span>${uiLabel("Client", "客户")}</span><strong>${client?.name || "-"}</strong></div>
+        <div><span>${uiLabel("Worker", "人员")}</span><strong>${worker?.name || "-"}</strong></div>
+        <div><span>${uiLabel("Sent Date", "发送日期")}</span><strong>${doc.sentAt}</strong></div>
+        <div><span>${uiLabel("Signed Date", "签署日期")}</span><strong>${doc.signedAt || statusLabel("待签署")}</strong></div>
       </div>
       <div class="document-preview">
-        <h3>文件预览</h3>
-        <p>这个签署链接包含 ${files.length} 个文件。正式系统会把这些文件合并为一份 PDF 签署包，并逐页要求客户签署。</p>
+        <h3>${uiLabel("Document Preview", "文件预览")}</h3>
+        <p>${uiLabel(`This signing link contains ${files.length} file(s). The production system will merge them into one PDF signing package and request customer signature page by page.`, `这个签署链接包含 ${files.length} 个文件。正式系统会把这些文件合并为一份 PDF 签署包，并逐页要求客户签署。`)}</p>
         <div class="file-chip-list">${files.map((file) => `<span class="file-chip">${file.fileName}</span>`).join("")}</div>
-        <div class="merge-preview">客户：${client?.name || "-"}　人员：${worker?.name || "-"}　流程：${doc.stage}</div>
+        <div class="merge-preview">${uiLabel("Client", "客户")}：${client?.name || "-"}　${uiLabel("Worker", "人员")}：${worker?.name || "-"}　${uiLabel("Process", "流程")}：${doc.stage}</div>
       </div>
       ${
         signed
-          ? `<div class="signed-box">已由 ${doc.signedBy || client?.name || "客户"} 于 ${doc.signedAt} 签署，副本已发送给客户。</div>`
+          ? `<div class="signed-box">${uiLabel("Signed by", "已由")} ${doc.signedBy || client?.name || uiLabel("Customer", "客户")} ${uiLabel("on", "于")} ${doc.signedAt} ${uiLabel("and a copy has been sent to the customer.", "签署，副本已发送给客户。")}</div>`
           : `<form id="signatureForm" class="signature-form">
               <label>
-                签署人姓名
+                ${uiLabel("Signer Name", "签署人姓名")}
                 <input name="signedBy" value="${client?.name || ""}" required />
               </label>
               <label class="check-option">
                 <input name="confirm" type="checkbox" required />
-                <span>我确认已阅读并同意签署此文件。</span>
+                <span>${uiLabel("I confirm that I have read and agree to sign this document.", "我确认已阅读并同意签署此文件。")}</span>
               </label>
-              <button class="primary-btn">确认电子签名</button>
+              <button class="primary-btn">${uiLabel("Confirm E-Signature", "确认电子签名")}</button>
             </form>`
       }
     </article>
@@ -1803,9 +1834,7 @@ function bindEvents() {
     if (!button) return;
     currentLanguage = button.dataset.lang || "zh";
     localStorage.setItem("bybridgeLanguage", currentLanguage);
-    renderLanguageLabels();
-    initFilters();
-    renderFront();
+    renderAll();
   });
 
   $("#categoryTabs").addEventListener("click", (event) => {
@@ -1901,7 +1930,7 @@ function bindEvents() {
     if (activeAdminCategory !== "女佣") {
       const title = localized(categoryMeta[activeAdminCategory].title);
       openDialog(
-        `新增${title}人员`,
+        uiLabel(`Add ${title} Worker`, `新增${title}人员`),
         [
           { label: "Name", name: "name" },
           { label: "Nationality", name: "nationality" },
@@ -1933,27 +1962,27 @@ function bindEvents() {
       return;
     }
     openDialog(
-      "新增女佣",
+      uiLabel("Add Maid", "新增女佣"),
       [
-        { label: "姓名", name: "name" },
-        { label: "国籍", name: "nationality" },
-        { label: "年龄", name: "age" },
-        { label: "月薪", name: "salary" },
-        { label: "经验年数", name: "experience" },
-        { label: "语言", name: "languages" },
-        { label: "护照号码", name: "passportNo" },
-        { label: "出生日期", name: "dateOfBirth" },
-        { label: "宗教", name: "religion" },
-        { label: "婚姻状况", name: "maritalStatus" },
-        { label: "学历", name: "education" },
-        { label: "身高 cm", name: "height" },
-        { label: "体重 kg", name: "weight" },
-        { label: "家乡城市", name: "originCity" },
-        { label: "经验国家，用逗号分隔", name: "workedCountries", full: true },
-        { label: "可做事项，用逗号分隔", name: "duties", full: true },
-        { label: "休息日", name: "offDay" },
-        { label: "体检状态", name: "medicalStatus" },
-        { label: "医疗记录，每行格式：项目: 状态", name: "medicalHistory", type: "textarea", full: true },
+        { label: uiLabel("Name", "姓名"), name: "name" },
+        { label: uiLabel("Nationality", "国籍"), name: "nationality" },
+        { label: uiLabel("Age", "年龄"), name: "age" },
+        { label: uiLabel("Monthly Salary", "月薪"), name: "salary" },
+        { label: uiLabel("Years of Experience", "经验年数"), name: "experience" },
+        { label: uiLabel("Languages", "语言"), name: "languages" },
+        { label: uiLabel("Passport No.", "护照号码"), name: "passportNo" },
+        { label: uiLabel("Date of Birth", "出生日期"), name: "dateOfBirth" },
+        { label: uiLabel("Religion", "宗教"), name: "religion" },
+        { label: uiLabel("Marital Status", "婚姻状况"), name: "maritalStatus" },
+        { label: uiLabel("Education", "学历"), name: "education" },
+        { label: uiLabel("Height cm", "身高 cm"), name: "height" },
+        { label: uiLabel("Weight kg", "体重 kg"), name: "weight" },
+        { label: uiLabel("Home City", "家乡城市"), name: "originCity" },
+        { label: uiLabel("Worked Countries, comma-separated", "经验国家，用逗号分隔"), name: "workedCountries", full: true },
+        { label: uiLabel("Duties, comma-separated", "可做事项，用逗号分隔"), name: "duties", full: true },
+        { label: uiLabel("Rest Day", "休息日"), name: "offDay" },
+        { label: uiLabel("Medical Status", "体检状态"), name: "medicalStatus" },
+        { label: uiLabel("Medical History, one per line: Item: Status", "医疗记录，每行格式：项目: 状态"), name: "medicalHistory", type: "textarea", full: true },
         {
           label: "18. Food handling preference",
           name: "foodHandlingOptions",
@@ -1963,8 +1992,8 @@ function bindEvents() {
           otherName: "foodHandlingOther",
           otherPlaceholder: "Others"
         },
-        { label: "过敏 / 怕什么 / 其他限制", name: "allergies", type: "textarea", full: true },
-        { label: "Skills of FDW，每行格式：工作范围 | Willing | Exp | Years | Rate | Observation", name: "skillAssessment", type: "textarea", full: true },
+        { label: uiLabel("Allergies / Fears / Other Restrictions", "过敏 / 怕什么 / 其他限制"), name: "allergies", type: "textarea", full: true },
+        { label: uiLabel("Skills of FDW, one per line: Scope | Willing | Exp | Years | Rate | Observation", "Skills of FDW，每行格式：工作范围 | Willing | Exp | Years | Rate | Observation"), name: "skillAssessment", type: "textarea", full: true },
         {
           label: "B1. Method of evaluation of skills",
           name: "evaluationMethods",
@@ -1986,10 +2015,10 @@ function bindEvents() {
             "FDW can be interviewed in person"
           ]
         },
-        { label: "海外工作经历，每行格式：From | To | Country | Employer | Duties", name: "employmentHistory", type: "textarea", full: true },
-        { label: "Biodata 备注", name: "biodataRemarks", type: "textarea", full: true },
-        { label: "技能，用逗号分隔", name: "skills", full: true },
-        { label: "简介", name: "summary", type: "textarea", full: true }
+        { label: uiLabel("Overseas Employment History, one per line: From | To | Country | Employer | Duties", "海外工作经历，每行格式：From | To | Country | Employer | Duties"), name: "employmentHistory", type: "textarea", full: true },
+        { label: uiLabel("Biodata Remarks", "Biodata 备注"), name: "biodataRemarks", type: "textarea", full: true },
+        { label: uiLabel("Skills, comma-separated", "技能，用逗号分隔"), name: "skills", full: true },
+        { label: uiLabel("Summary", "简介"), name: "summary", type: "textarea", full: true }
       ],
       (data) => {
         const id = `m${Date.now()}`;
@@ -2024,12 +2053,12 @@ function bindEvents() {
 
   $("#addClientBtn").addEventListener("click", () => {
     openDialog(
-      "新增客户",
+      uiLabel("Add Client", "新增客户"),
       [
-        { label: "客户姓名", name: "name" },
-        { label: "联系电话", name: "phone" },
-        { label: "需求", name: "need" },
-        { label: "预算", name: "budget" }
+        { label: uiLabel("Client Name", "客户姓名"), name: "name" },
+        { label: uiLabel("Phone", "联系电话"), name: "phone" },
+        { label: uiLabel("Need", "需求"), name: "need" },
+        { label: uiLabel("Budget", "预算"), name: "budget" }
       ],
       (data) => {
         const worker = workersForCategory()[0];
@@ -2059,10 +2088,10 @@ function bindEvents() {
 
   $("#sendDocBtn").addEventListener("click", () => {
     openDialog(
-      "发送签署文件",
+      uiLabel("Send Signing Document", "发送签署文件"),
       [
-        { label: "文件名称", name: "name" },
-        { label: "触发阶段", name: "stage" }
+        { label: uiLabel("Document Name", "文件名称"), name: "name" },
+        { label: uiLabel("Trigger Stage", "触发阶段"), name: "stage" }
       ],
       (data) => {
         const firstClient = clientsForCategory()[0] || state.clients[0];
@@ -2103,9 +2132,9 @@ function bindEvents() {
     if (copyButton) {
       const url = currentSigningUrl(copyButton.dataset.copyLink);
       navigator.clipboard?.writeText(url);
-      copyButton.textContent = "已复制";
+      copyButton.textContent = uiLabel("Copied", "已复制");
       setTimeout(() => {
-        copyButton.textContent = "复制链接";
+        copyButton.textContent = uiLabel("Copy Link", "复制链接");
       }, 1200);
       return;
     }
