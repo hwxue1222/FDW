@@ -1410,7 +1410,7 @@ function renderMaidDetail(maid) {
       </div>
 
       <section class="detail-section">
-        <h3>${uiLabel("Fixed Personal Information Labels", "固定个人信息标签")}</h3>
+        <h3>${uiLabel("Personal Particulars", "个人资料")}</h3>
         <div class="profile-grid maid-fixed-grid">
           ${detailFields([
             [uiLabel("Name", "姓名"), maid.name],
