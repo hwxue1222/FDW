@@ -1253,37 +1253,6 @@ textarea {
   background: #f8fbf9;
 }
 
-.stage-dropzone {
-  display: grid;
-  place-items: center;
-  gap: 4px;
-  min-height: 82px;
-  padding: 14px;
-  border: 2px dashed #b9c9c1;
-  border-radius: 8px;
-  background: #fbfdfc;
-  color: var(--muted);
-  text-align: center;
-}
-
-.stage-dropzone strong {
-  color: var(--green-dark);
-  font-size: 14px;
-}
-
-.stage-dropzone span {
-  font-size: 12px;
-}
-
-.stage-dropzone input {
-  display: none;
-}
-
-.stage-dropzone.dragging {
-  border-color: var(--green);
-  background: #eaf5ef;
-}
-
 .stage-package {
   display: grid;
   grid-template-columns: 1fr auto auto auto;

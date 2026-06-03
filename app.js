@@ -1986,11 +1986,6 @@ function renderStageDocuments(maidId, stage) {
         </label>
         <button class="primary-btn" type="button" data-send-template="${stage}">${uiLabel("Completed, Send Link to Client for Signature", "填写完毕，发送链接给客户签名")}</button>
       </div>
-      <label class="stage-dropzone" data-stage="${stage}">
-        <input type="file" data-stage-input="${stage}" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" multiple />
-        <strong>${uiLabel(`You can also drag completed forms into "${stage}"`, `也可以拖入已填写表格到“${stage}”`)}</strong>
-        <span>${uiLabel("The system will merge them into one signing package and generate one client signing link.", "系统会整合成一个签署包，并生成同一个客户签署链接")}</span>
-      </label>
       ${docList || `<div class="empty-state">${uiLabel("No signing documents in this stage yet.", "这个节点还没有签署文件。")}</div>`}
     </div>
   `;
@@ -2323,42 +2318,6 @@ function bindEvents() {
 
   $("#timelineMaidSelect").addEventListener("change", renderTimeline);
   $("#processClientSelect").addEventListener("change", renderProcessDocuments);
-
-  document.addEventListener("change", (event) => {
-    const input = event.target.closest("[data-stage-input]");
-    if (!input) return;
-    if (!input.files?.length) return;
-    addFilesToStage(input.files, input.dataset.stageInput);
-    input.value = "";
-  });
-
-  document.addEventListener("dragenter", (event) => {
-    const zone = event.target.closest("[data-stage]");
-    if (!zone) return;
-    event.preventDefault();
-    zone.classList.add("dragging");
-  });
-
-  document.addEventListener("dragover", (event) => {
-    const zone = event.target.closest("[data-stage]");
-    if (!zone) return;
-    event.preventDefault();
-  });
-
-  document.addEventListener("dragleave", (event) => {
-    const zone = event.target.closest("[data-stage]");
-    if (!zone) return;
-    zone.classList.remove("dragging");
-  });
-
-  document.addEventListener("drop", (event) => {
-    const zone = event.target.closest("[data-stage]");
-    if (!zone) return;
-    event.preventDefault();
-    zone.classList.remove("dragging");
-    if (!event.dataTransfer?.files?.length) return;
-    addFilesToStage(event.dataTransfer.files, zone.dataset.stage);
-  });
 
   $("#maidPdfInput").addEventListener("change", async (event) => {
     const file = event.target.files?.[0];
