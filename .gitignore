@@ -1,4 +1,6 @@
 _git/
+.env
+.env.local
 .venv/
 __pycache__/
 assets/upload-*.pdf

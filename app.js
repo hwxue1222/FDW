@@ -554,6 +554,7 @@ let activeFrontCategory = "女佣";
 let activeAdminCategory = "女佣";
 let activeMaidDetailId = "";
 let currentLanguage = localStorage.getItem("bybridgeLanguage") || "en";
+let currentSession = JSON.parse(localStorage.getItem("bybridgeAdminSession") || "null");
 
 const save = () => localStorage.setItem("maidAgencyState", JSON.stringify(state));
 const $ = (selector) => document.querySelector(selector);
@@ -651,6 +652,47 @@ function uiLabel(en, zh) {
   return currentLanguage === "zh" ? zh : en;
 }
 
+function currentUser() {
+  return currentSession?.user || null;
+}
+
+function isAdminLoggedIn() {
+  return Boolean(currentSession?.token && currentUser());
+}
+
+function canManageAccounts() {
+  return currentUser()?.role === "admin";
+}
+
+function saveSession(session) {
+  currentSession = session?.token && session?.user ? session : null;
+  if (currentSession) {
+    localStorage.setItem("bybridgeAdminSession", JSON.stringify(currentSession));
+  } else {
+    localStorage.removeItem("bybridgeAdminSession");
+  }
+}
+
+async function apiRequest(path, options = {}) {
+  const response = await fetch(path, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...(currentSession?.token ? { Authorization: `Bearer ${currentSession.token}` } : {}),
+      ...(options.headers || {})
+    }
+  });
+  const data = await response.json().catch(() => ({}));
+  if (response.status === 401) {
+    saveSession(null);
+    renderAll();
+  }
+  if (!response.ok) {
+    throw new Error(data.message || data.error || "Request failed");
+  }
+  return data;
+}
+
 function displayValue(value, fallback = "-") {
   if (Array.isArray(value)) return value.length ? value.join(currentLanguage === "zh" ? "、" : ", ") : fallback;
   if (value === 0) return "0";
@@ -685,6 +727,13 @@ function renderLanguageLabels() {
   $("#dialogSubmit").textContent = uiLabel("Save", "保存");
   $("#previewTitle").textContent = uiLabel("Preview", "预览");
   $("#previewOpen").textContent = uiLabel("Open in New Tab", "新标签页打开");
+  $("#loginEyebrow").textContent = uiLabel("Admin Login", "后台登录");
+  $("#loginTitle").textContent = uiLabel("Back Office Access", "后台访问");
+  $("#loginUsernameLabel").textContent = uiLabel("Username", "用户名");
+  $("#loginPasswordLabel").textContent = uiLabel("Password", "密码");
+  $("#loginSubmitBtn").textContent = uiLabel("Login", "登录");
+  $("#userTitle").textContent = uiLabel("Account Management", "账号管理");
+  $("#addUserBtn").textContent = uiLabel("Add Employee Account", "新增员工账号");
   $$("#languageSwitch button").forEach((button) => {
     button.classList.toggle("active", button.dataset.lang === currentLanguage);
   });
@@ -1139,6 +1188,20 @@ function renderAdminCategoryTabs() {
     { id: "documents", label: uiLabel("Signed Documents", "签署文件") },
     { id: "downloads", label: uiLabel("Form Downloads", "表格下载") }
   ];
+  const accountModule = canManageAccounts()
+    ? `
+      <section class="admin-category-group account-group">
+        <div class="admin-category-heading">
+          <span>${uiLabel("Administration", "系统管理")}</span>
+        </div>
+        <div class="admin-module-list">
+          <button class="${document.querySelector(".admin-tab.active-admin-tab")?.id === "users" ? "active" : ""}" type="button" data-admin-tab-only="users">
+            ${uiLabel("Account Management", "账号管理")}
+          </button>
+        </div>
+      </section>
+    `
+    : "";
   const activeTab = document.querySelector(".admin-tab.active-admin-tab")?.id || "maids";
   $("#adminCategoryTabs").innerHTML = Object.keys(categoryMeta)
     .map((key) => {
@@ -1163,7 +1226,7 @@ function renderAdminCategoryTabs() {
         </section>
       `;
     })
-    .join("");
+    .join("") + accountModule;
   const title = localized(categoryMeta[activeAdminCategory].title);
   $("#personnelTitle").textContent = `${title} · ${uiLabel("Personnel Management", "人员管理")}`;
   $("#clientTitle").textContent = `${title} · ${uiLabel("Client Management", "客户管理")}`;
@@ -1174,6 +1237,21 @@ function renderAdminCategoryTabs() {
   $("#uploadBiodataText").textContent = uiLabel("Upload Biodata PDF", "上传 Biodata PDF");
   const upload = $("#maidPdfInput")?.closest(".upload-btn");
   if (upload) upload.style.display = activeAdminCategory === "女佣" ? "inline-flex" : "none";
+}
+
+function renderAdminAuth() {
+  const loggedIn = isAdminLoggedIn();
+  $("#adminAuth").style.display = loggedIn ? "none" : "grid";
+  document.querySelector("#admin .admin-layout").style.display = loggedIn ? "grid" : "none";
+  if (!loggedIn) return;
+  const user = currentUser();
+  $("#adminSessionBar").innerHTML = `
+    <div>
+      <strong>${user.name}</strong>
+      <span>${user.username} · ${user.role === "admin" ? uiLabel("Administrator", "管理员") : uiLabel("Employee", "员工")}</span>
+    </div>
+    <button class="mini-btn" type="button" data-admin-logout>${uiLabel("Logout", "退出登录")}</button>
+  `;
 }
 
 function renderDashboard() {
@@ -1680,6 +1758,36 @@ function renderDocuments() {
     : `<div class="empty-state">${uiLabel("No sent signing documents in this category yet.", "当前分类还没有已发送的签署文件。")}</div>`;
 }
 
+async function renderUsers() {
+  if (!$("#userList")) return;
+  if (!canManageAccounts()) {
+    $("#userList").innerHTML = `<div class="empty-state">${uiLabel("Only administrators can manage accounts.", "只有管理员可以管理账号。")}</div>`;
+    return;
+  }
+  $("#userList").innerHTML = `<div class="empty-state">${uiLabel("Loading accounts...", "正在加载账号...")}</div>`;
+  try {
+    const data = await apiRequest("/api/accounts");
+    const accounts = data.accounts || [];
+    $("#userList").innerHTML = accounts
+    .map(
+      (account) => `
+        <article class="detail-card user-card">
+          <div class="detail-head">
+            <div>
+              <div class="row-title">${account.name}</div>
+              <div class="row-sub">${account.username} · ${account.role === "admin" ? uiLabel("Administrator", "管理员") : uiLabel("Employee", "员工")}</div>
+            </div>
+            <span class="tag ${account.status === "active" ? "" : "amber"}">${account.status === "active" ? uiLabel("Active", "启用") : uiLabel("Disabled", "停用")}</span>
+          </div>
+        </article>
+      `
+    )
+    .join("");
+  } catch (error) {
+    $("#userList").innerHTML = `<div class="empty-state">${error.message}</div>`;
+  }
+}
+
 function renderSignaturePortal() {
   const docId = location.hash.startsWith("#sign=") ? location.hash.replace("#sign=", "") : "";
   const portal = $("#signaturePortal");
@@ -1766,6 +1874,7 @@ function renderAll() {
   renderLanguageLabels();
   initFilters();
   renderFront();
+  renderAdminAuth();
   renderAdminCategoryTabs();
   renderDashboard();
   renderAdminMaids();
@@ -1774,6 +1883,7 @@ function renderAll() {
   renderProcessSelectors();
   renderTimeline();
   renderDocuments();
+  renderUsers();
   renderDownloads();
   renderSignaturePortal();
 }
@@ -1814,7 +1924,7 @@ function openDialog(title, fields, onSubmit) {
       return `<label class="${field.full ? "full" : ""}">${field.label}${input}</label>`;
     })
     .join("");
-  $("#recordForm").onsubmit = (event) => {
+  $("#recordForm").onsubmit = async (event) => {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
     const data = Object.fromEntries(formData.entries());
@@ -1823,10 +1933,14 @@ function openDialog(title, fields, onSubmit) {
       .forEach((field) => {
         data[field.name] = formData.getAll(field.name);
       });
-    onSubmit(data);
-    save();
-    renderAll();
-    dialog.close();
+    try {
+      await onSubmit(data);
+      save();
+      renderAll();
+      dialog.close();
+    } catch (error) {
+      alert(error.message || "Request failed");
+    }
   };
   dialog.showModal();
 }
@@ -1838,10 +1952,40 @@ function bindEvents() {
       $$(".view").forEach((item) => item.classList.remove("active-view"));
       button.classList.add("active");
       $(`#${button.dataset.view}`).classList.add("active-view");
+      if (button.dataset.view === "admin") {
+        renderAdminAuth();
+      }
     });
   });
 
+  $("#adminLoginForm").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    const username = String(formData.get("username") || "").trim();
+    const password = String(formData.get("password") || "");
+    $("#loginError").textContent = "";
+    try {
+      const session = await apiRequest("/api/auth-login", {
+        method: "POST",
+        body: JSON.stringify({ username, password })
+      });
+      saveSession(session);
+      event.currentTarget.reset();
+      renderAll();
+    } catch (error) {
+      $("#loginError").textContent = error.message || uiLabel("Invalid username or password.", "用户名或密码错误。");
+    }
+  });
+
   $("#adminCategoryTabs").addEventListener("click", (event) => {
+    const tabOnlyButton = event.target.closest("[data-admin-tab-only]");
+    if (tabOnlyButton) {
+      $$(".admin-tab").forEach((item) => item.classList.remove("active-admin-tab"));
+      $(`#${tabOnlyButton.dataset.adminTabOnly}`).classList.add("active-admin-tab");
+      renderAdminCategoryTabs();
+      renderUsers();
+      return;
+    }
     const button = event.target.closest("[data-admin-category][data-admin-tab]");
     if (!button) return;
     activeAdminCategory = button.dataset.adminCategory || "女佣";
@@ -1856,6 +2000,16 @@ function bindEvents() {
     renderTimeline();
     renderDocuments();
     renderDownloads();
+  });
+
+  document.addEventListener("click", (event) => {
+    if (event.target.closest("[data-admin-logout]")) {
+      saveSession(null);
+      $$(".admin-tab").forEach((item) => item.classList.remove("active-admin-tab"));
+      $("#maids").classList.add("active-admin-tab");
+      renderAll();
+      return;
+    }
   });
 
   $("#languageSwitch").addEventListener("click", (event) => {
@@ -2110,6 +2264,29 @@ function bindEvents() {
               ]
             }
           ]
+        });
+      }
+    );
+  });
+
+  $("#addUserBtn").addEventListener("click", () => {
+    if (!canManageAccounts()) return;
+    openDialog(
+      uiLabel("Add Employee Account", "新增员工账号"),
+      [
+        { label: uiLabel("Employee Name", "员工姓名"), name: "name" },
+        { label: uiLabel("Username", "用户名"), name: "username" },
+        { label: uiLabel("Password", "密码"), name: "password" }
+      ],
+      async (data) => {
+        const username = String(data.username || "").trim();
+        if (!username) {
+          alert(uiLabel("Username is required.", "用户名不能为空。"));
+          return;
+        }
+        await apiRequest("/api/accounts", {
+          method: "POST",
+          body: JSON.stringify({ name: data.name, username, password: data.password })
         });
       }
     );

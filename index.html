@@ -74,12 +74,29 @@
       </section>
 
       <section id="admin" class="view">
+        <div id="adminAuth" class="auth-shell">
+          <form id="adminLoginForm" class="auth-card">
+            <p class="eyebrow" id="loginEyebrow">Admin Login</p>
+            <h2 id="loginTitle">Back Office Access</h2>
+            <label>
+              <span id="loginUsernameLabel">Username</span>
+              <input id="loginUsername" name="username" autocomplete="username" required />
+            </label>
+            <label>
+              <span id="loginPasswordLabel">Password</span>
+              <input id="loginPassword" name="password" type="password" autocomplete="current-password" required />
+            </label>
+            <div id="loginError" class="auth-error"></div>
+            <button id="loginSubmitBtn" class="primary-btn" type="submit">Login</button>
+          </form>
+        </div>
         <div class="admin-layout">
           <aside class="sidebar">
             <div class="admin-category-switch" id="adminCategoryTabs" aria-label="Admin categories and business modules"></div>
           </aside>
 
           <section class="admin-content">
+            <div id="adminSessionBar" class="session-bar"></div>
             <div id="maids" class="admin-tab active-admin-tab">
               <div class="section-head">
                 <div>
@@ -152,6 +169,17 @@
                 </div>
               </div>
               <div id="downloadList" class="download-grid"></div>
+            </div>
+
+            <div id="users" class="admin-tab">
+              <div class="section-head">
+                <div>
+                  <p class="eyebrow">System Users</p>
+                  <h2 id="userTitle">Account Management</h2>
+                </div>
+                <button id="addUserBtn" class="primary-btn">Add Employee Account</button>
+              </div>
+              <div id="userList" class="table-list"></div>
             </div>
           </section>
         </div>
