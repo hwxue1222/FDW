@@ -673,6 +673,8 @@ let activeAdminCategory = "女佣";
 let activeMaidDetailId = "";
 let currentLanguage = localStorage.getItem("bybridgeLanguage") || "en";
 let currentSession = JSON.parse(localStorage.getItem("bybridgeAdminSession") || "null");
+let activeViewId = ["front", "admin"].includes(localStorage.getItem("bybridgeActiveView")) ? localStorage.getItem("bybridgeActiveView") : "front";
+let activeAdminTabId = localStorage.getItem("bybridgeAdminTab") || "maids";
 
 const save = () => localStorage.setItem("maidAgencyState", JSON.stringify(state));
 const $ = (selector) => document.querySelector(selector);
@@ -794,6 +796,30 @@ function saveSession(session) {
     localStorage.setItem("bybridgeAdminSession", JSON.stringify(currentSession));
   } else {
     localStorage.removeItem("bybridgeAdminSession");
+  }
+}
+
+function activateView(viewId, persist = true) {
+  const nextView = ["front", "admin"].includes(viewId) ? viewId : "front";
+  activeViewId = nextView;
+  $$(".mode-switch button").forEach((button) => button.classList.toggle("active", button.dataset.view === nextView));
+  $$(".view").forEach((item) => item.classList.remove("active-view"));
+  $(`#${nextView}`)?.classList.add("active-view");
+  if (persist) {
+    localStorage.setItem("bybridgeActiveView", nextView);
+  }
+  if (nextView === "admin") {
+    renderAdminAuth();
+  }
+}
+
+function activateAdminTab(tabId, persist = true) {
+  const nextTab = $(`#${tabId}`) ? tabId : "maids";
+  activeAdminTabId = nextTab;
+  $$(".admin-tab").forEach((item) => item.classList.remove("active-admin-tab"));
+  $(`#${nextTab}`)?.classList.add("active-admin-tab");
+  if (persist) {
+    localStorage.setItem("bybridgeAdminTab", nextTab);
   }
 }
 
@@ -1645,7 +1671,7 @@ function renderAdminCategoryTabs() {
       </section>
     `
     : "";
-  const activeTab = document.querySelector(".admin-tab.active-admin-tab")?.id || "maids";
+  const activeTab = activeAdminTabId || document.querySelector(".admin-tab.active-admin-tab")?.id || "maids";
   $("#adminCategoryTabs").innerHTML = Object.keys(categoryMeta)
     .map((key) => {
       const count = workersForCategory(key).length;
@@ -2376,6 +2402,8 @@ function renderSignaturePortal() {
 function renderAll() {
   renderLanguageLabels();
   initFilters();
+  activateAdminTab(activeAdminTabId, false);
+  activateView(activeViewId, false);
   renderFront();
   renderAdminAuth();
   renderAdminCategoryTabs();
@@ -2459,13 +2487,7 @@ function bindEvents() {
 
   $$(".mode-switch button").forEach((button) => {
     button.addEventListener("click", () => {
-      $$(".mode-switch button").forEach((item) => item.classList.remove("active"));
-      $$(".view").forEach((item) => item.classList.remove("active-view"));
-      button.classList.add("active");
-      $(`#${button.dataset.view}`).classList.add("active-view");
-      if (button.dataset.view === "admin") {
-        renderAdminAuth();
-      }
+      activateView(button.dataset.view || "front");
     });
   });
 
@@ -2492,8 +2514,7 @@ function bindEvents() {
   $("#adminCategoryTabs").addEventListener("click", (event) => {
     const tabOnlyButton = event.target.closest("[data-admin-tab-only]");
     if (tabOnlyButton) {
-      $$(".admin-tab").forEach((item) => item.classList.remove("active-admin-tab"));
-      $(`#${tabOnlyButton.dataset.adminTabOnly}`).classList.add("active-admin-tab");
+      activateAdminTab(tabOnlyButton.dataset.adminTabOnly || "maids");
       renderAdminCategoryTabs();
       renderUsers();
       return;
@@ -2502,8 +2523,7 @@ function bindEvents() {
     if (!button) return;
     activeAdminCategory = button.dataset.adminCategory || "女佣";
     activeMaidDetailId = "";
-    $$(".admin-tab").forEach((item) => item.classList.remove("active-admin-tab"));
-    $(`#${button.dataset.adminTab}`).classList.add("active-admin-tab");
+    activateAdminTab(button.dataset.adminTab || "maids");
     renderAdminCategoryTabs();
     renderAdminMaids();
     renderClients();
@@ -2517,8 +2537,8 @@ function bindEvents() {
   document.addEventListener("click", (event) => {
     if (event.target.closest("[data-admin-logout]")) {
       saveSession(null);
-      $$(".admin-tab").forEach((item) => item.classList.remove("active-admin-tab"));
-      $("#maids").classList.add("active-admin-tab");
+      activateView("admin");
+      activateAdminTab("maids");
       renderAll();
       return;
     }
