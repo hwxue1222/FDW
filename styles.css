@@ -428,7 +428,8 @@ textarea {
 }
 
 .legal-dialog {
-  width: min(920px, calc(100vw - 32px));
+  width: 100%;
+  min-width: 0;
   max-height: min(820px, calc(100vh - 32px));
   display: grid;
   grid-template-rows: auto 1fr;
@@ -447,14 +448,19 @@ textarea {
 }
 
 .legal-body {
-  overflow: auto;
+  min-width: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
   padding: 24px;
 }
 
 .legal-content {
   display: grid;
   gap: 14px;
+  min-width: 0;
   color: var(--ink);
+  overflow-wrap: anywhere;
+  word-break: normal;
 }
 
 .legal-content h3,
@@ -474,6 +480,7 @@ textarea {
   color: var(--muted);
   font-size: 14px;
   line-height: 1.65;
+  min-width: 0;
 }
 
 .legal-content ul {
@@ -1406,6 +1413,11 @@ dialog {
 
 dialog::backdrop {
   background: rgba(23, 33, 29, 0.3);
+}
+
+#termsDialog {
+  width: min(920px, calc(100vw - 32px));
+  max-width: calc(100vw - 32px);
 }
 
 #recordForm {
