@@ -1,4 +1,6 @@
 const crypto = require("crypto");
+const net = require("net");
+const tls = require("tls");
 
 const ACCOUNT_KEY = "bybridge:accounts";
 
@@ -70,8 +72,18 @@ function verifyPassword(password, stored) {
 }
 
 async function redis(command) {
-  const url = requiredEnv("KV_REST_API_URL");
-  const token = requiredEnv("KV_REST_API_TOKEN");
+  if (process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) {
+    return redisRest(command);
+  }
+  if (process.env.REDIS_URL) {
+    return redisUrl(command);
+  }
+  throw new Error("Missing Redis storage environment variable: set REDIS_URL or KV_REST_API_URL/KV_REST_API_TOKEN");
+}
+
+async function redisRest(command) {
+  const url = process.env.KV_REST_API_URL;
+  const token = process.env.KV_REST_API_TOKEN;
   const response = await fetch(url, {
     method: "POST",
     headers: {
@@ -85,6 +97,93 @@ async function redis(command) {
     throw new Error(data.error || "Storage request failed");
   }
   return data.result;
+}
+
+function encodeRedisCommand(command) {
+  return `*${command.length}\r\n${command.map((part) => {
+    const value = String(part);
+    return `$${Buffer.byteLength(value)}\r\n${value}\r\n`;
+  }).join("")}`;
+}
+
+function parseRedisReply(buffer) {
+  const text = buffer.toString("utf8");
+  const type = text[0];
+  if (!type) return undefined;
+  if (type === "+" || type === "-" || type === ":") {
+    const lineEnd = text.indexOf("\r\n");
+    if (lineEnd < 0) return undefined;
+    if (type === "+") return text.slice(1, lineEnd);
+    if (type === "-") throw new Error(text.slice(1, lineEnd));
+    return Number(text.slice(1, lineEnd));
+  }
+  if (type === "$") {
+    const firstLineEnd = text.indexOf("\r\n");
+    if (firstLineEnd < 0) return undefined;
+    const length = Number(text.slice(1, firstLineEnd));
+    if (length < 0) return null;
+    if (buffer.length < firstLineEnd + 2 + length + 2) return undefined;
+    return text.slice(firstLineEnd + 2, firstLineEnd + 2 + length);
+  }
+  if (type === "*") {
+    const lines = text.split("\r\n").slice(1);
+    return lines.filter((line) => line && !line.startsWith("$"));
+  }
+  throw new Error("Unsupported Redis response");
+}
+
+async function redisUrl(command) {
+  const redisUrl = new URL(process.env.REDIS_URL);
+  const secure = redisUrl.protocol === "rediss:";
+  const port = Number(redisUrl.port || (secure ? 6380 : 6379));
+  const authPassword = decodeURIComponent(redisUrl.password || "");
+  const authUser = decodeURIComponent(redisUrl.username || "");
+  const commands = [];
+  if (authPassword) {
+    commands.push(authUser ? ["AUTH", authUser, authPassword] : ["AUTH", authPassword]);
+  }
+  commands.push(command);
+
+  return new Promise((resolve, reject) => {
+    const socket = (secure ? tls : net).connect({ host: redisUrl.hostname, port, servername: redisUrl.hostname });
+    let buffer = Buffer.alloc(0);
+    let index = 0;
+    let settled = false;
+
+    function fail(error) {
+      if (settled) return;
+      settled = true;
+      socket.destroy();
+      reject(error);
+    }
+
+    function sendNext() {
+      if (index >= commands.length) return;
+      socket.write(encodeRedisCommand(commands[index]));
+    }
+
+    socket.setTimeout(8000, () => fail(new Error("Redis connection timeout")));
+    socket.once(secure ? "secureConnect" : "connect", sendNext);
+    socket.on("error", fail);
+    socket.on("data", (chunk) => {
+      buffer = Buffer.concat([buffer, chunk]);
+      try {
+        const result = parseRedisReply(buffer);
+        if (result === undefined) return;
+        buffer = Buffer.alloc(0);
+        index += 1;
+        if (index < commands.length) {
+          sendNext();
+          return;
+        }
+        settled = true;
+        socket.end();
+        resolve(result);
+      } catch (error) {
+        fail(error);
+      }
+    });
+  });
 }
 
 async function getAccounts() {
