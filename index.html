@@ -3,14 +3,13 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>女佣中介管理系统</title>
+    <title>Bybridge Job Agency System</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
     <header class="topbar">
       <div>
-        <p class="eyebrow">Maid Agency System</p>
-        <h1>女佣中介管理系统</h1>
+        <h1>Bybridge Job Agency System</h1>
       </div>
       <nav class="mode-switch" aria-label="系统入口">
         <button class="active" data-view="front">前台</button>
@@ -36,15 +35,6 @@
           <aside class="filter-panel">
             <h2>客户筛选</h2>
             <label>
-              分类
-              <select id="categoryFilter">
-                <option value="全部">全部</option>
-                <option value="女佣">女佣</option>
-                <option value="建筑">建筑</option>
-                <option value="服务">服务</option>
-              </select>
-            </label>
-            <label>
               国籍
               <select id="nationalityFilter">
                 <option value="全部">全部</option>
@@ -69,13 +59,9 @@
 
           <section>
             <div class="section-head">
-              <div>
-                <p class="eyebrow">Worker Portal</p>
-                <h2>工人资料库</h2>
-              </div>
+              <div id="categoryTabs" class="category-tabs" role="tablist" aria-label="工人分类"></div>
               <span id="frontCount" class="status-pill"></span>
             </div>
-            <div id="categorySummary" class="category-summary"></div>
             <div id="maidCards" class="maid-grid"></div>
           </section>
         </div>

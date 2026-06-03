@@ -497,6 +497,7 @@ function normalizeState(savedState) {
 }
 
 const state = normalizeState(JSON.parse(localStorage.getItem("maidAgencyState")));
+let activeFrontCategory = "女佣";
 
 const save = () => localStorage.setItem("maidAgencyState", JSON.stringify(state));
 const $ = (selector) => document.querySelector(selector);
@@ -796,98 +797,90 @@ function initFilters() {
 }
 
 function renderFront() {
-  const category = $("#categoryFilter").value;
   const nationality = $("#nationalityFilter").value;
   const experience = $("#experienceFilter").value;
   const skill = $("#skillFilter").value;
-  const workers = allFrontWorkers().filter((worker) => {
-    const matchCategory = category === "全部" || worker.category === category;
+  const filteredByControls = allFrontWorkers().filter((worker) => {
     const matchNationality = nationality === "全部" || worker.nationality === nationality;
     const matchExperience = experience === "全部" || worker.experience >= Number(experience);
     const matchSkill = skill === "全部" || worker.skills.includes(skill);
-    return matchCategory && matchNationality && matchExperience && matchSkill;
+    return matchNationality && matchExperience && matchSkill;
   });
+  const workers = filteredByControls.filter((worker) => worker.category === activeFrontCategory);
+  const meta = categoryMeta[activeFrontCategory];
+
+  $("#categoryTabs").innerHTML = Object.keys(categoryMeta)
+    .map((key) => {
+      const count = filteredByControls.filter((worker) => worker.category === key).length;
+      return `
+        <button class="category-tab ${key === activeFrontCategory ? "active" : ""}" type="button" data-category="${key}" role="tab" aria-selected="${key === activeFrontCategory}">
+          <span>${key}</span>
+          <em>${count}</em>
+        </button>
+      `;
+    })
+    .join("");
 
   $("#frontCount").textContent = `${workers.length} 位可查看`;
-  $("#categorySummary").innerHTML = Object.entries(categoryMeta)
-    .map(([key, meta]) => {
-      const count = workers.filter((worker) => worker.category === key).length;
-      return `
-        <div class="category-card">
-          <span>${meta.eyebrow}</span>
-          <strong>${meta.title}</strong>
-          <em>${count} 位工人</em>
+  if (!workers.length) {
+    $("#maidCards").innerHTML = `
+      <section class="worker-section">
+        <div class="worker-section-head">
+          <div>
+            <h3>${meta.title}</h3>
+            <p>${meta.description}</p>
+          </div>
         </div>
-      `;
-    })
-    .join("");
+        <div class="empty-state">当前筛选下暂无${meta.title}工人。</div>
+      </section>
+    `;
+    return;
+  }
 
-  $("#maidCards").innerHTML = Object.entries(categoryMeta)
-    .map(([key, meta]) => {
-      const group = workers.filter((worker) => worker.category === key);
-      if (!group.length) {
-        return `
-          <section class="worker-section">
-            <div class="worker-section-head">
-              <div>
-                <p class="eyebrow">${meta.eyebrow}</p>
-                <h3>${meta.title}</h3>
-                <p>${meta.description}</p>
-              </div>
-              <span class="status-pill">0 位</span>
-            </div>
-            <div class="empty-state">当前筛选下暂无${meta.title}工人。</div>
-          </section>
-        `;
-      }
-      return `
-        <section class="worker-section">
-          <div class="worker-section-head">
-            <div>
-              <p class="eyebrow">${meta.eyebrow}</p>
-              <h3>${meta.title}</h3>
-              <p>${meta.description}</p>
-            </div>
-            <span class="status-pill">${group.length} 位</span>
-          </div>
-          <div class="worker-grid">
-            ${group
-              .map(
-                (worker) => `
-                  <article class="maid-card">
-                    ${
-                      worker.photoUrl
-                        ? `<img class="maid-photo" src="${worker.photoUrl}" alt="${worker.name}" />`
-                        : `<div class="maid-photo ${worker.category === "建筑" ? "building" : worker.category === "服务" ? "service" : ""}">${worker.name.slice(0, 1)}</div>`
-                    }
-                    <div class="maid-body">
-                      <div class="maid-title">
-                        <div>
-                          <h3>${worker.name}</h3>
-                          <span>${worker.refNo} · ${worker.role}</span>
-                        </div>
-                        <span class="tag ${worker.status === "面试中" ? "amber" : ""}">${worker.status}</span>
-                      </div>
-                      <p>${worker.summary}</p>
-                      <div class="info-grid">
-                        <div><span>分类</span><strong>${worker.category}</strong></div>
-                        <div><span>国籍</span><strong>${worker.nationality}</strong></div>
-                        <div><span>年龄</span><strong>${worker.age} 岁</strong></div>
-                        <div><span>经验</span><strong>${worker.experience} 年</strong></div>
-                        <div><span>薪资</span><strong>${worker.salary}</strong></div>
-                        <div><span>语言</span><strong>${worker.languages}</strong></div>
-                      </div>
-                      <div class="skills">${worker.skills.map((item) => `<span class="tag blue">${item}</span>`).join("")}</div>
+  $("#maidCards").innerHTML = `
+    <section class="worker-section">
+      <div class="worker-section-head">
+        <div>
+          <h3>${meta.title}</h3>
+          <p>${meta.description}</p>
+        </div>
+      </div>
+      <div class="worker-grid">
+        ${workers
+          .map(
+            (worker) => `
+              <article class="maid-card">
+                ${
+                  worker.photoUrl
+                    ? `<img class="maid-photo" src="${worker.photoUrl}" alt="${worker.name}" />`
+                    : `<div class="maid-photo ${worker.category === "建筑" ? "building" : worker.category === "服务" ? "service" : ""}">${worker.name.slice(0, 1)}</div>`
+                }
+                <div class="maid-body">
+                  <div class="maid-title">
+                    <div>
+                      <h3>${worker.name}</h3>
+                      <span>${worker.refNo} · ${worker.role}</span>
                     </div>
-                  </article>
-                `
-              )
-              .join("")}
-          </div>
-        </section>
-      `;
-    })
-    .join("");
+                    <span class="tag ${worker.status === "面试中" ? "amber" : ""}">${worker.status}</span>
+                  </div>
+                  <p>${worker.summary}</p>
+                  <div class="info-grid">
+                    <div><span>分类</span><strong>${worker.category}</strong></div>
+                    <div><span>国籍</span><strong>${worker.nationality}</strong></div>
+                    <div><span>年龄</span><strong>${worker.age} 岁</strong></div>
+                    <div><span>经验</span><strong>${worker.experience} 年</strong></div>
+                    <div><span>薪资</span><strong>${worker.salary}</strong></div>
+                    <div><span>语言</span><strong>${worker.languages}</strong></div>
+                  </div>
+                  <div class="skills">${worker.skills.map((item) => `<span class="tag blue">${item}</span>`).join("")}</div>
+                </div>
+              </article>
+            `
+          )
+          .join("")}
+      </div>
+    </section>
+  `;
 }
 
 function renderDashboard() {
@@ -1390,7 +1383,14 @@ function bindEvents() {
     });
   });
 
-  ["#categoryFilter", "#nationalityFilter", "#experienceFilter", "#skillFilter"].forEach((selector) => {
+  $("#categoryTabs").addEventListener("click", (event) => {
+    const tab = event.target.closest(".category-tab");
+    if (!tab) return;
+    activeFrontCategory = tab.dataset.category || "女佣";
+    renderFront();
+  });
+
+  ["#nationalityFilter", "#experienceFilter", "#skillFilter"].forEach((selector) => {
     $(selector).addEventListener("change", renderFront);
   });
 
