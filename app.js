@@ -1106,6 +1106,7 @@ function renderFront() {
   });
   const workers = filteredByControls.filter((worker) => worker.category === activeFrontCategory);
   const meta = categoryMeta[activeFrontCategory];
+  const footer = renderFrontFooter();
 
   $("#categoryTabs").innerHTML = Object.keys(categoryMeta)
     .map((key) => {
@@ -1130,6 +1131,7 @@ function renderFront() {
           </div>
         </div>
         <div class="empty-state">${txt().empty(localized(meta.title))}</div>
+        ${footer}
       </section>
     `;
     return;
@@ -1177,7 +1179,33 @@ function renderFront() {
           )
           .join("")}
       </div>
+      ${footer}
     </section>
+  `;
+}
+
+function renderFrontFooter() {
+  return `
+    <footer class="front-footer">
+      <div>
+        <p class="footer-site">jobsg.agency</p>
+        <p>Managed by <strong>Bybridge Consultancy Pte Ltd</strong></p>
+      </div>
+      <div class="footer-grid">
+        <div>
+          <span>Company UEN</span>
+          <strong>201523304N</strong>
+        </div>
+        <div>
+          <span>Resume submissions and recruitment enquiries</span>
+          <a href="mailto:Luke@bby.sg">Luke@bby.sg</a>
+        </div>
+        <div>
+          <span>Company Address</span>
+          <strong>8 Burn Road #15-03 Trivex Singapore 369977</strong>
+        </div>
+      </div>
+    </footer>
   `;
 }
 
