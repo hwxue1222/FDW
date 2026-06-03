@@ -674,7 +674,8 @@ function saveSession(session) {
 }
 
 async function apiRequest(path, options = {}) {
-  const response = await fetch(path, {
+  const apiPath = location.protocol === "file:" && path.startsWith("/") ? `https://fdw-one.vercel.app${path}` : path;
+  const response = await fetch(apiPath, {
     ...options,
     headers: {
       "Content-Type": "application/json",
@@ -1960,7 +1961,8 @@ function bindEvents() {
 
   $("#adminLoginForm").addEventListener("submit", async (event) => {
     event.preventDefault();
-    const formData = new FormData(event.currentTarget);
+    const form = event.currentTarget;
+    const formData = new FormData(form);
     const username = String(formData.get("username") || "").trim();
     const password = String(formData.get("password") || "");
     $("#loginError").textContent = "";
@@ -1970,7 +1972,7 @@ function bindEvents() {
         body: JSON.stringify({ username, password })
       });
       saveSession(session);
-      event.currentTarget.reset();
+      form.reset();
       renderAll();
     } catch (error) {
       $("#loginError").textContent = error.message || uiLabel("Invalid username or password.", "用户名或密码错误。");
