@@ -352,6 +352,13 @@ const defaultMaidDetails = {
   biodataRemarks: ""
 };
 
+const skillEvaluationMethodOptions = [
+  "Based on FDW's declaration, no evaluation/observation by EA or overseas training centre / EA",
+  "Interviewed via videoconference",
+  "Interviewed in person",
+  "Interviewed in person and also made observation of the FDW in the areas of work listed in the table"
+];
+
 const categoryMeta = {
   女佣: {
     title: { zh: "女佣", en: "Maid" },
@@ -1200,6 +1207,7 @@ function detailFields(fields) {
 }
 
 function renderMaidDetail(maid) {
+  const selectedEvaluationMethods = new Set(maid.evaluationMethods || []);
   const medicalRows = (maid.medicalHistory || [])
     .map((item) => `<div class="simple-row"><span>${item.item || "-"}</span><strong>${item.status || "-"}</strong></div>`)
     .join("");
@@ -1313,6 +1321,21 @@ function renderMaidDetail(maid) {
       <section class="detail-section">
         <h3>工作范围与能力</h3>
         <div class="skills">${(maid.duties || maid.skills || []).map((item) => `<span class="tag blue">${item}</span>`).join("")}</div>
+        <div class="evaluation-methods">
+          <div class="row-sub">Method of evaluation of skills（多选）</div>
+          <div class="evaluation-grid">
+            ${skillEvaluationMethodOptions
+              .map(
+                (option) => `
+                  <div class="evaluation-option ${selectedEvaluationMethods.has(option) ? "selected" : ""}">
+                    <span>${selectedEvaluationMethods.has(option) ? "✓" : ""}</span>
+                    <strong>${option}</strong>
+                  </div>
+                `
+              )
+              .join("")}
+          </div>
+        </div>
         <div class="skill-table maid-skill-table">
           <div class="skill-row skill-head">
             <span>工作范围</span>
@@ -1352,7 +1375,6 @@ function renderMaidDetail(maid) {
         <h3>面试与 Biodata 备注</h3>
         <div class="profile-grid maid-fixed-grid">
           ${detailFields([
-            ["评估方式", maid.evaluationMethods],
             ["可面试方式", maid.interviewAvailability],
             ["Biodata 备注", maid.biodataRemarks]
           ])}
@@ -1948,12 +1970,7 @@ function bindEvents() {
           name: "evaluationMethods",
           type: "checkboxGroup",
           full: true,
-          options: [
-            "Based on FDW's declaration, no evaluation/observation by EA or overseas training centre / EA",
-            "Interviewed via videoconference",
-            "Interviewed in person",
-            "Interviewed in person and also made observation of the FDW"
-          ],
+          options: skillEvaluationMethodOptions,
           otherName: "evaluationMethodOther",
           otherPlaceholder: "Other evaluation method"
         },
