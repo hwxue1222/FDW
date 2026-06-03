@@ -1058,7 +1058,7 @@ function paymentDisplayStatus(payment) {
 }
 
 function clientTypeLabel(type) {
-  return type === "transferred" ? "Transferred" : "New";
+  return type === "transferred" ? "Transfer" : "New";
 }
 
 function findClientHirePayment(clientId, hireId, paymentId) {
@@ -3045,7 +3045,7 @@ function bindEvents() {
           type: "select",
           options: [
             { value: "new", label: "New" },
-            { value: "transferred", label: "Transferred" }
+            { value: "transferred", label: "Transfer" }
           ]
         },
         { label: uiLabel("Need", "需求"), name: "need" },
