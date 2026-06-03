@@ -1712,14 +1712,25 @@ function renderAdminAuth() {
   const loggedIn = isAdminLoggedIn();
   $("#adminAuth").style.display = loggedIn ? "none" : "grid";
   document.querySelector("#admin .admin-layout").style.display = loggedIn ? "grid" : "none";
-  if (!loggedIn) return;
+  if (!loggedIn) {
+    $("#accountMenu").innerHTML = "";
+    return;
+  }
   const user = currentUser();
-  $("#adminSessionBar").innerHTML = `
-    <div>
-      <strong>${user.name}</strong>
-      <span>${user.username} · ${user.role === "admin" ? uiLabel("Administrator", "管理员") : uiLabel("Employee", "员工")}</span>
-    </div>
-    <button class="mini-btn" type="button" data-admin-logout>${uiLabel("Logout", "退出登录")}</button>
+  $("#accountMenu").innerHTML = `
+    <details class="account-popover">
+      <summary>
+        <span>${user.name}</span>
+        <small>${user.role === "admin" ? uiLabel("Administrator", "管理员") : uiLabel("Employee", "员工")}</small>
+      </summary>
+      <div class="account-panel">
+        <button type="button" data-account-profile>${uiLabel("Profile", "个人资料")}</button>
+        <button type="button" data-account-team>${uiLabel("Manage Team", "管理团队")}</button>
+        ${canManageAccounts() ? `<button type="button" data-account-add-user>${uiLabel("Add Back Office User", "增加后台使用者账号")}</button>` : ""}
+        <button type="button" data-account-password>${uiLabel("Change Password", "修改密码")}</button>
+        <button type="button" data-admin-logout>${uiLabel("Logout", "退出登录")}</button>
+      </div>
+    </details>
   `;
 }
 
@@ -2476,6 +2487,60 @@ function openDialog(title, fields, onSubmit) {
   dialog.showModal();
 }
 
+function openAddUserDialog() {
+  if (!canManageAccounts()) return;
+  openDialog(
+    uiLabel("Add Employee Account", "新增员工账号"),
+    [
+      { label: uiLabel("Employee Name", "员工姓名"), name: "name" },
+      { label: uiLabel("Username", "用户名"), name: "username" },
+      { label: uiLabel("Password", "密码"), name: "password" }
+    ],
+    async (data) => {
+      const username = String(data.username || "").trim();
+      if (!username) {
+        alert(uiLabel("Username is required.", "用户名不能为空。"));
+        return;
+      }
+      await apiRequest("/api/accounts", {
+        method: "POST",
+        body: JSON.stringify({ name: data.name, username, password: data.password })
+      });
+    }
+  );
+}
+
+function openProfileDialog() {
+  const user = currentUser();
+  if (!user) return;
+  openDialog(
+    uiLabel("Profile", "个人资料"),
+    [
+      { label: uiLabel("Name", "姓名"), name: "name", value: user.name || "" },
+      { label: uiLabel("Username", "用户名"), name: "username", value: user.username || "" },
+      { label: uiLabel("Role", "角色"), name: "role", value: user.role === "admin" ? "Administrator" : "Employee" }
+    ],
+    () => {}
+  );
+}
+
+function openChangePasswordDialog() {
+  openDialog(
+    uiLabel("Change Password", "修改密码"),
+    [
+      { label: uiLabel("Current Password", "当前密码"), name: "currentPassword" },
+      { label: uiLabel("New Password", "新密码"), name: "newPassword" },
+      { label: uiLabel("Confirm New Password", "确认新密码"), name: "confirmPassword" }
+    ],
+    (data) => {
+      if (data.newPassword !== data.confirmPassword) {
+        throw new Error(uiLabel("New passwords do not match.", "两次输入的新密码不一致。"));
+      }
+      alert(uiLabel("Password change request saved. The production API can be connected next.", "修改密码请求已记录，下一步可以接入正式 API。"));
+    }
+  );
+}
+
 function bindEvents() {
   document.addEventListener("click", (event) => {
     const closeButton = event.target.closest("[data-dialog-close]");
@@ -2483,6 +2548,37 @@ function bindEvents() {
     event.preventDefault();
     $("#recordForm").onsubmit = null;
     $("#recordDialog").close();
+  });
+
+  document.addEventListener("click", (event) => {
+    const profileButton = event.target.closest("[data-account-profile]");
+    const teamButton = event.target.closest("[data-account-team]");
+    const addUserButton = event.target.closest("[data-account-add-user]");
+    const passwordButton = event.target.closest("[data-account-password]");
+    if (!profileButton && !teamButton && !addUserButton && !passwordButton) return;
+    $("#accountMenu details")?.removeAttribute("open");
+    if (profileButton) {
+      openProfileDialog();
+      return;
+    }
+    if (teamButton) {
+      activateView("admin");
+      activateAdminTab("users");
+      renderAdminCategoryTabs();
+      renderUsers();
+      return;
+    }
+    if (addUserButton) {
+      activateView("admin");
+      activateAdminTab("users");
+      renderAdminCategoryTabs();
+      renderUsers();
+      openAddUserDialog();
+      return;
+    }
+    if (passwordButton) {
+      openChangePasswordDialog();
+    }
   });
 
   $$(".mode-switch button").forEach((button) => {
@@ -2787,26 +2883,7 @@ function bindEvents() {
   });
 
   $("#addUserBtn").addEventListener("click", () => {
-    if (!canManageAccounts()) return;
-    openDialog(
-      uiLabel("Add Employee Account", "新增员工账号"),
-      [
-        { label: uiLabel("Employee Name", "员工姓名"), name: "name" },
-        { label: uiLabel("Username", "用户名"), name: "username" },
-        { label: uiLabel("Password", "密码"), name: "password" }
-      ],
-      async (data) => {
-        const username = String(data.username || "").trim();
-        if (!username) {
-          alert(uiLabel("Username is required.", "用户名不能为空。"));
-          return;
-        }
-        await apiRequest("/api/accounts", {
-          method: "POST",
-          body: JSON.stringify({ name: data.name, username, password: data.password })
-        });
-      }
-    );
+    openAddUserDialog();
   });
 
   $("#sendDocBtn").addEventListener("click", () => {

@@ -173,27 +173,66 @@ main {
   font-weight: 800;
 }
 
-.session-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-  padding: 12px 14px;
-  margin-bottom: 16px;
+.account-menu {
+  position: relative;
+}
+
+.account-popover summary {
+  display: grid;
+  gap: 2px;
+  min-width: 138px;
+  padding: 8px 12px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: #fbfdfc;
+  background: var(--white);
+  cursor: pointer;
+  list-style: none;
 }
 
-.session-bar strong,
-.session-bar span {
-  display: block;
+.account-popover summary::-webkit-details-marker {
+  display: none;
 }
 
-.session-bar span {
-  margin-top: 3px;
-  color: var(--muted);
+.account-popover summary span {
+  color: var(--ink);
   font-size: 13px;
+  font-weight: 800;
+}
+
+.account-popover summary small {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.account-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 30;
+  display: grid;
+  min-width: 230px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--white);
+  box-shadow: var(--shadow);
+}
+
+.account-panel button {
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 6px;
+  color: var(--ink);
+  background: transparent;
+  font-size: 13px;
+  font-weight: 800;
+  text-align: left;
+}
+
+.account-panel button:hover {
+  background: #edf3f0;
 }
 
 .account-group {
@@ -1565,6 +1604,17 @@ menu {
   .metric-grid,
   .sign-controls {
     grid-template-columns: 1fr;
+  }
+
+  .account-menu,
+  .account-popover summary {
+    width: 100%;
+  }
+
+  .account-panel {
+    left: 0;
+    right: auto;
+    width: 100%;
   }
 
   .front-footer,
