@@ -257,7 +257,7 @@ const seed = {
       { step: "Arrival in Singapore", date: "2026-06-14", status: "待处理", note: "Waiting for flight confirmation" },
       { step: "Medical Check", date: "2026-06-16", status: "待处理", note: "To arrange after arrival" },
       { step: "Deployment Training", date: "2026-06-18", status: "待处理", note: "Household rules briefing" },
-      { step: "Periodic Medical Check", date: "2026-12-18", status: "待处理", note: "Six-month review" }
+      { step: "Deployment (Sent to employer's house and start working)", date: "2026-12-18", status: "待处理", note: "Final deployment stage" }
     ],
     m2: [
       { step: "Interview", date: "2026-06-01", status: "进行中", note: "Customer second interview" },
@@ -462,6 +462,22 @@ const defaultTimelineSteps = [
   { step: "Deployment Arrangement", date: "TBC", status: "待处理", note: "Waiting for signature completion" }
 ];
 
+function normalizeTimelineStage(item) {
+  if (!item || !["Periodic Medical Check", "Deployment"].includes(item.step)) return item;
+  return {
+    ...item,
+    step: "Deployment (Sent to employer's house and start working)",
+    note: "Final deployment stage"
+  };
+}
+
+function normalizeDocumentStage(stage) {
+  if (stage === "Periodic Medical Check" || stage === "Deployment") {
+    return "Deployment (Sent to employer's house and start working)";
+  }
+  return stage;
+}
+
 function normalizeState(savedState) {
   const data = savedState || seed;
   if (savedState) {
@@ -480,7 +496,7 @@ function normalizeState(savedState) {
     });
     data.timeline = { ...(data.timeline || {}) };
     Object.entries(seed.timeline).forEach(([maidId, items]) => {
-      data.timeline[maidId] = items.map((item) => ({ ...item }));
+      data.timeline[maidId] = items.map((item) => normalizeTimelineStage({ ...item }));
     });
     const seededDocumentIds = new Set(seed.documents.map((doc) => doc.id));
     data.documents = [
@@ -529,6 +545,9 @@ function normalizeState(savedState) {
   data.workers.forEach((worker) => {
     data.timeline[worker.id] = data.timeline[worker.id] || defaultTimelineSteps.map((step) => ({ ...step }));
   });
+  Object.keys(data.timeline || {}).forEach((maidId) => {
+    data.timeline[maidId] = (data.timeline[maidId] || []).map((item) => normalizeTimelineStage(item));
+  });
   data.documents = (data.documents || seed.documents).map((doc) => ({
     fileName: doc.name ? `${doc.name}.pdf` : "Pending Signing Document.pdf",
     fileType: "PDF",
@@ -536,7 +555,8 @@ function normalizeState(savedState) {
     signingLink: `#sign=${doc.id}`,
     signedBy: "",
     source: "template",
-    ...doc
+    ...doc,
+    stage: normalizeDocumentStage(doc.stage)
   }));
   return data;
 }
