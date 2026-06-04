@@ -1292,7 +1292,14 @@ function buildMaidProfilePdf(maid) {
   );
 
   pdf.heading("Method of Evaluation");
-  pdf.table(["No.", "Method"], (maid.evaluationMethods || []).map((item, index) => [String(index + 1), item]), [45, 505]);
+  {
+    const selectedMethods = new Set(maid.evaluationMethods || []);
+    pdf.table(
+      ["Selected", "Method"],
+      skillEvaluationMethodOptions.map((item) => [selectedMethods.has(item) ? "[x]" : "[ ]", item]),
+      [65, 485]
+    );
+  }
 
   pdf.heading("Overseas Employment History");
   pdf.table(
@@ -1832,12 +1839,12 @@ function openMaidProfileSectionDialog(maidId, section) {
           required: false
         },
         {
-          label: "Method of evaluation, one per line",
+          label: "Method of evaluation of skills (multiple choice)",
           name: "evaluationMethods",
-          type: "textarea",
+          type: "checkboxGroup",
           full: true,
-          required: false,
-          value: formatListLines(maid.evaluationMethods)
+          options: skillEvaluationMethodOptions,
+          value: maid.evaluationMethods || []
         },
         {
           label: "Skills of FDW",
@@ -1858,10 +1865,7 @@ function openMaidProfileSectionDialog(maidId, section) {
       (data) => {
         maid.duties = splitList(data.duties);
         maid.skills = splitList(data.duties);
-        maid.evaluationMethods = formatListLines(data.evaluationMethods)
-          .split("\n")
-          .map((item) => item.trim())
-          .filter(Boolean);
+        maid.evaluationMethods = data.evaluationMethods || [];
         maid.skillAssessment = data.skillAssessment;
       }
     );
