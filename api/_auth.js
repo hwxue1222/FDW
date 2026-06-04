@@ -3,6 +3,7 @@ const net = require("net");
 const tls = require("tls");
 
 const ACCOUNT_KEY = "bybridge:accounts";
+const APP_STATE_KEY = "bybridge:app-state";
 
 function json(res, status, body) {
   res.statusCode = status;
@@ -195,6 +196,15 @@ async function saveAccounts(accounts) {
   await redis(["SET", ACCOUNT_KEY, JSON.stringify(accounts)]);
 }
 
+async function getAppState() {
+  const raw = await redis(["GET", APP_STATE_KEY]);
+  return raw ? JSON.parse(raw) : null;
+}
+
+async function saveAppState(state) {
+  await redis(["SET", APP_STATE_KEY, JSON.stringify(state)]);
+}
+
 function publicUser(account) {
   return {
     id: account.id,
@@ -213,6 +223,7 @@ function getBearerUser(req) {
 module.exports = {
   createToken,
   getAccounts,
+  getAppState,
   getBearerUser,
   hashPassword,
   json,
@@ -220,5 +231,6 @@ module.exports = {
   readBody,
   requiredEnv,
   saveAccounts,
+  saveAppState,
   verifyPassword
 };

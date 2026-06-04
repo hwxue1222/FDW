@@ -705,18 +705,48 @@ function normalizeState(savedState) {
   return data;
 }
 
-const state = normalizeState(JSON.parse(localStorage.getItem("maidAgencyState")));
+function parseStoredJson(key) {
+  try {
+    return JSON.parse(localStorage.getItem(key) || "null");
+  } catch (error) {
+    return null;
+  }
+}
+
+function cloneState(value) {
+  return JSON.parse(JSON.stringify(value || {}));
+}
+
+const initialLocalState = parseStoredJson("maidAgencyState");
+const state = normalizeState(initialLocalState ? cloneState(initialLocalState) : null);
 let activeFrontCategory = "女佣";
 let activeFrontDetailId = "";
 let activeAdminCategory = "女佣";
 let activeMaidDetailId = "";
 let currentLanguage = localStorage.getItem("bybridgeLanguage") || "en";
-let currentSession = JSON.parse(localStorage.getItem("bybridgeAdminSession") || "null");
+let currentSession = parseStoredJson("bybridgeAdminSession");
 let activeViewId = ["front", "admin"].includes(localStorage.getItem("bybridgeActiveView")) ? localStorage.getItem("bybridgeActiveView") : "front";
 let activeAdminTabId = localStorage.getItem("bybridgeAdminTab") || "maids";
 let adminAccountsCache = [];
+let remoteSaveTimer = null;
+let isHydratingSharedState = false;
 
-const save = () => localStorage.setItem("maidAgencyState", JSON.stringify(state));
+function saveLocalState() {
+  localStorage.setItem("maidAgencyState", JSON.stringify(state));
+}
+
+function scheduleRemoteSave() {
+  if (isHydratingSharedState || !currentSession?.token) return;
+  clearTimeout(remoteSaveTimer);
+  remoteSaveTimer = setTimeout(() => {
+    persistSharedState();
+  }, 500);
+}
+
+const save = () => {
+  saveLocalState();
+  scheduleRemoteSave();
+};
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
 
@@ -893,6 +923,80 @@ function apiUrl(path) {
     location.protocol === "file:" ||
     (["127.0.0.1", "localhost"].includes(location.hostname) && path === "/api/import-biodata");
   return isStaticPreview && path.startsWith("/") ? `https://fdw-one.vercel.app${path}` : path;
+}
+
+function identityValue(item, fields = ["id", "refNo", "name"]) {
+  for (const field of fields) {
+    const value = String(item?.[field] || "").trim().toLowerCase();
+    if (value) return value;
+  }
+  return "";
+}
+
+function mergeList(sharedItems = [], localItems = [], fields) {
+  const merged = new Map();
+  localItems.forEach((item) => {
+    const key = identityValue(item, fields);
+    if (key) merged.set(key, item);
+  });
+  sharedItems.forEach((item) => {
+    const key = identityValue(item, fields);
+    if (key) merged.set(key, { ...(merged.get(key) || {}), ...item });
+  });
+  return [...merged.values()];
+}
+
+function mergeSharedState(sharedRaw, localRaw) {
+  const local = normalizeState(localRaw ? cloneState(localRaw) : null);
+  if (!sharedRaw) return local;
+  const shared = normalizeState(cloneState(sharedRaw));
+  return normalizeState({
+    ...local,
+    ...shared,
+    maids: mergeList(shared.maids, local.maids, ["refNo", "id", "name"]),
+    clients: mergeList(shared.clients, local.clients, ["id", "name"]),
+    documents: mergeList(shared.documents, local.documents, ["id"]),
+    requirementDrafts: mergeList(shared.requirementDrafts, local.requirementDrafts, ["id"]),
+    timeline: { ...(local.timeline || {}), ...(shared.timeline || {}) }
+  });
+}
+
+async function persistSharedState() {
+  if (!currentSession?.token) return;
+  try {
+    await apiRequest("/api/state", {
+      method: "PUT",
+      body: JSON.stringify({ state })
+    });
+  } catch (error) {
+    console.warn("Shared state save failed", error);
+  }
+}
+
+async function hydrateSharedState() {
+  try {
+    isHydratingSharedState = true;
+    const response = await fetch(apiUrl("/api/state"), {
+      headers: currentSession?.token ? { Authorization: `Bearer ${currentSession.token}` } : {}
+    });
+    if (!response.ok) return;
+    const data = await response.json();
+    const localRaw = parseStoredJson("maidAgencyState");
+    const mergedState = mergeSharedState(data.state, localRaw);
+    Object.keys(state).forEach((key) => delete state[key]);
+    Object.assign(state, mergedState);
+    state.maids = state.maids.map((maid) => normalizeUppercaseText(maid));
+    state.clients = state.clients.map((client) => normalizeUppercaseText(client));
+    saveLocalState();
+    renderAll();
+    if (currentSession?.token) {
+      await persistSharedState();
+    }
+  } catch (error) {
+    console.warn("Shared state load failed", error);
+  } finally {
+    isHydratingSharedState = false;
+  }
 }
 
 function displayValue(value, fallback = "-") {
@@ -3696,6 +3800,7 @@ function bindEvents() {
         body: JSON.stringify({ username, password })
       });
       saveSession(session);
+      await hydrateSharedState();
       form.reset();
       renderAll();
     } catch (error) {
@@ -4135,6 +4240,7 @@ function bindEvents() {
 
 state.maids = state.maids.map((maid) => normalizeUppercaseText(maid));
 state.clients = state.clients.map((client) => normalizeUppercaseText(client));
-save();
+saveLocalState();
 bindEvents();
 renderAll();
+hydrateSharedState();
