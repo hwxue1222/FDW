@@ -1586,6 +1586,59 @@ legend {
   margin-top: 10px;
 }
 
+.row-editor-field {
+  overflow-x: auto;
+}
+
+.row-editor-list {
+  display: grid;
+  gap: 10px;
+}
+
+.row-editor-line {
+  display: grid;
+  grid-template-columns: var(--row-editor-columns);
+  gap: 8px;
+  align-items: end;
+  min-width: 620px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfdfc;
+}
+
+.row-editor-cell {
+  display: grid;
+  gap: 5px;
+  font-size: 12px;
+}
+
+.row-editor-cell span {
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.row-editor-cell input,
+.row-editor-cell textarea {
+  min-height: 36px;
+  font-size: 13px;
+}
+
+.row-editor-cell textarea {
+  resize: vertical;
+}
+
+.row-editor-remove {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  font-size: 18px;
+}
+
+.row-editor-actions {
+  margin-top: 10px;
+}
+
 menu {
   display: flex;
   justify-content: flex-end;

@@ -1384,6 +1384,41 @@ function formatMoney(amount) {
   return `S$${Number(amount || 0).toLocaleString("en-SG")}`;
 }
 
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function rowEditorTemplate(columns = []) {
+  return `${columns.map((column) => column.width || "minmax(110px, 1fr)").join(" ")} 42px`;
+}
+
+function renderRowEditorLine(field, row = {}) {
+  return `
+    <div class="row-editor-line" style="--row-editor-columns: ${rowEditorTemplate(field.columns)}">
+      ${(field.columns || [])
+        .map((column) => {
+          const value = row[column.name] ?? "";
+          const control =
+            column.type === "textarea"
+              ? `<textarea data-row-key="${column.name}" rows="${column.rows || 2}" placeholder="${escapeHtml(column.placeholder || column.label)}">${escapeHtml(value)}</textarea>`
+              : `<input data-row-key="${column.name}" value="${escapeHtml(value)}" placeholder="${escapeHtml(column.placeholder || column.label)}" />`;
+          return `
+            <label class="row-editor-cell">
+              <span>${column.label}</span>
+              ${control}
+            </label>
+          `;
+        })
+        .join("")}
+      <button class="mini-btn row-editor-remove" type="button" data-remove-row-editor aria-label="${uiLabel("Remove row", "删除此行")}">×</button>
+    </div>
+  `;
+}
+
 function paymentsForClient(client) {
   return (client.hires || []).flatMap((hire) => hire.payments || []);
 }
@@ -1587,16 +1622,22 @@ function openMaidProfileSectionDialog(maidId, section) {
       uiLabel("Edit Overseas Employment History", "编辑海外工作经历"),
       [
         {
-          label: uiLabel("One record per line: From | To | Country | Employer | Duties", "每行一条：From | To | Country | Employer | Duties"),
+          label: uiLabel("Overseas Employment Records", "海外工作记录"),
           name: "employmentHistory",
-          type: "textarea",
+          type: "rowEditor",
           full: true,
-          required: false,
-          value: formatEmploymentLines(maid.employmentHistory)
+          rows: maid.employmentHistory || [],
+          columns: [
+            { name: "from", label: "From", width: "92px" },
+            { name: "to", label: "To", width: "92px" },
+            { name: "country", label: "Country", width: "130px" },
+            { name: "employer", label: "Employer", width: "150px" },
+            { name: "duties", label: "Duties", width: "minmax(220px, 1fr)", type: "textarea" }
+          ]
         }
       ],
       (data) => {
-        maid.employmentHistory = parseEmploymentLines(data.employmentHistory);
+        maid.employmentHistory = data.employmentHistory;
       }
     );
     return;
@@ -1673,19 +1714,22 @@ function openMaidProfileSectionDialog(maidId, section) {
         { label: "Food Handling", name: "foodHandling", value: maid.foodHandling || "", full: true },
         { label: "Allergies / Fears / Restrictions", name: "allergies", value: maid.allergies || "", type: "textarea", full: true, required: false },
         {
-          label: "Medical History, one per line: Item: Status",
+          label: "Medical History",
           name: "medicalHistory",
-          type: "textarea",
+          type: "rowEditor",
           full: true,
-          required: false,
-          value: (maid.medicalHistory || []).map((item) => `${item.item || ""}: ${item.status || ""}`).join("\n")
+          rows: maid.medicalHistory || [],
+          columns: [
+            { name: "item", label: "Item", width: "minmax(180px, 1fr)" },
+            { name: "status", label: "Status", width: "minmax(120px, 1fr)" }
+          ]
         }
       ],
       (data) => {
         maid.medicalStatus = data.medicalStatus;
         maid.foodHandling = data.foodHandling;
         maid.allergies = data.allergies;
-        maid.medicalHistory = parsePairLines(data.medicalHistory);
+        maid.medicalHistory = data.medicalHistory;
       }
     );
     return;
@@ -1711,14 +1755,19 @@ function openMaidProfileSectionDialog(maidId, section) {
           value: formatListLines(maid.evaluationMethods)
         },
         {
-          label: "Skills of FDW, one per line: Scope | Willing | Exp | Years | Rating | Remarks",
+          label: "Skills of FDW",
           name: "skillAssessment",
-          type: "textarea",
+          type: "rowEditor",
           full: true,
-          required: false,
-          value: (maid.skillAssessment || [])
-            .map((item) => [item.area, item.willingness, item.experience, item.years, item.rating, item.observation].map((value) => value || "").join(" | "))
-            .join("\n")
+          rows: maid.skillAssessment || [],
+          columns: [
+            { name: "area", label: "Scope of Work", width: "minmax(180px, 1.4fr)" },
+            { name: "willingness", label: "Willing", width: "80px" },
+            { name: "experience", label: "Experience", width: "90px" },
+            { name: "years", label: "Years", width: "70px" },
+            { name: "rating", label: "Rating", width: "80px" },
+            { name: "observation", label: "Remarks", width: "minmax(220px, 1.6fr)", type: "textarea" }
+          ]
         }
       ],
       (data) => {
@@ -1728,7 +1777,7 @@ function openMaidProfileSectionDialog(maidId, section) {
           .split("\n")
           .map((item) => item.trim())
           .filter(Boolean);
-        maid.skillAssessment = parseSkillLines(data.skillAssessment);
+        maid.skillAssessment = data.skillAssessment;
       }
     );
     return;
@@ -1739,16 +1788,22 @@ function openMaidProfileSectionDialog(maidId, section) {
       uiLabel("Edit MOM Singapore Records", "编辑 MOM 新加坡记录"),
       [
         {
-          label: uiLabel("One record per line: From | To | Employer | Industry | Remarks", "每行一条：From | To | Employer | Industry | Remarks"),
+          label: uiLabel("MOM Singapore Records", "MOM 新加坡记录"),
           name: "momHistory",
-          type: "textarea",
+          type: "rowEditor",
           full: true,
-          required: false,
-          value: formatMomHistoryLines(maid.momHistory)
+          rows: maid.momHistory || [],
+          columns: [
+            { name: "startDate", label: "From", width: "92px" },
+            { name: "endDate", label: "To", width: "92px" },
+            { name: "employer", label: "Employer", width: "160px" },
+            { name: "industry", label: "Industry", width: "130px" },
+            { name: "remarks", label: "Remarks", width: "minmax(220px, 1fr)", type: "textarea" }
+          ]
         }
       ],
       (data) => {
-        maid.momHistory = parseMomHistoryLines(data.momHistory);
+        maid.momHistory = data.momHistory;
       }
     );
     return;
@@ -3272,6 +3327,20 @@ function openDialog(title, fields, onSubmit) {
   $("#dialogTitle").textContent = title;
   $("#dialogFields").innerHTML = fields
     .map((field) => {
+      if (field.type === "rowEditor") {
+        const rows = (field.rows || []).length ? field.rows : [{}];
+        return `
+          <fieldset class="full row-editor-field" data-row-editor-name="${field.name}">
+            <legend>${field.label}</legend>
+            <div class="row-editor-list">
+              ${rows.map((row) => renderRowEditorLine(field, row)).join("")}
+            </div>
+            <div class="row-editor-actions">
+              <button class="mini-btn" type="button" data-add-row-editor="${field.name}">${uiLabel("Add Row", "增加一行")}</button>
+            </div>
+          </fieldset>
+        `;
+      }
       if (field.type === "checkboxGroup") {
         return `
           <fieldset class="${field.full ? "full" : ""}">
@@ -3319,6 +3388,27 @@ function openDialog(title, fields, onSubmit) {
       return `<label class="${field.full ? "full" : ""}">${field.label}${input}</label>`;
     })
     .join("");
+  $("#dialogFields").onclick = (event) => {
+    const addButton = event.target.closest("[data-add-row-editor]");
+    if (addButton) {
+      const field = fields.find((item) => item.name === addButton.dataset.addRowEditor);
+      const list = addButton.closest(".row-editor-field")?.querySelector(".row-editor-list");
+      if (field && list) list.insertAdjacentHTML("beforeend", renderRowEditorLine(field, {}));
+      return;
+    }
+    const removeButton = event.target.closest("[data-remove-row-editor]");
+    if (removeButton) {
+      const list = removeButton.closest(".row-editor-list");
+      const rows = list ? [...list.querySelectorAll(".row-editor-line")] : [];
+      if (rows.length <= 1) {
+        rows[0]?.querySelectorAll("input, textarea").forEach((control) => {
+          control.value = "";
+        });
+      } else {
+        removeButton.closest(".row-editor-line")?.remove();
+      }
+    }
+  };
   $("#recordForm").onsubmit = async (event) => {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
@@ -3327,6 +3417,18 @@ function openDialog(title, fields, onSubmit) {
       .filter((field) => field.type === "checkboxGroup")
       .forEach((field) => {
         data[field.name] = formData.getAll(field.name);
+      });
+    fields
+      .filter((field) => field.type === "rowEditor")
+      .forEach((field) => {
+        const editor = document.querySelector(`.row-editor-field[data-row-editor-name="${field.name}"]`);
+        data[field.name] = [...(editor?.querySelectorAll(".row-editor-line") || [])]
+          .map((row) =>
+            Object.fromEntries(
+              (field.columns || []).map((column) => [column.name, row.querySelector(`[data-row-key="${column.name}"]`)?.value.trim() || ""])
+            )
+          )
+          .filter((row) => Object.values(row).some(Boolean));
       });
     try {
       await onSubmit(data);
