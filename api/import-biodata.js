@@ -363,6 +363,9 @@ function extractSalary(text, refNo) {
 function extractHeight(text) {
   const pair = text.match(/\b(\d{3})\s*cm\s*(?:\/|\s)\s*(\d{2,3})\s*kg\b/i);
   if (pair) return Number(pair[1]);
+  const heightBlock = nearbyLines(text, /height\s*\/?\s*weight|height/i, 5);
+  const fromBlock = heightBlock.match(/\b(\d{3})\s*cm\b/i)?.[1] || heightBlock.match(/\bheight\b\D{0,20}(\d{3})\b/i)?.[1];
+  if (fromBlock) return Number(fromBlock);
   const heightLine = valueAfter(text, ["Height / Weight", "Height/Weight", "Height"]);
   const fromLine = heightLine.match(/\b(\d{3})\s*cm\b/i)?.[1];
   if (fromLine) return Number(fromLine);
@@ -372,10 +375,23 @@ function extractHeight(text) {
 function extractWeight(text) {
   const pair = text.match(/\b(\d{3})\s*cm\s*(?:\/|\s)\s*(\d{2,3})\s*kg\b/i);
   if (pair) return Number(pair[2]);
+  const heightBlock = nearbyLines(text, /height\s*\/?\s*weight|weight/i, 5);
+  const fromKg = heightBlock.match(/\b(\d{2,3})\s*kg\b/i)?.[1];
+  if (fromKg) return Number(fromKg);
+  const numbers = heightBlock.match(/\b\d{2,3}\b/g) || [];
+  const likelyWeight = numbers.map(Number).find((number) => number >= 35 && number <= 95);
+  if (likelyWeight) return likelyWeight;
   const weightLine = valueAfter(text, ["Height / Weight", "Height/Weight", "Weight"]);
   const fromLine = weightLine.match(/\b(\d{2,3})\s*kg\b/i)?.[1];
   if (fromLine) return Number(fromLine);
   return extractNumber(text, [], [/\b(\d{2,3})\s*kg\b/i]);
+}
+
+function nearbyLines(text, pattern, count = 4) {
+  const lines = linesOf(text);
+  const index = lines.findIndex((line) => pattern.test(line));
+  if (index < 0) return "";
+  return lines.slice(index, index + count).join(" ");
 }
 
 function cleanEducation(value) {
@@ -412,9 +428,8 @@ function extractMedicalHistory(text) {
 
 function parseSkillRowFromLine(line) {
   const yesNo = line.match(/\b(Yes|No)\b/gi) || [];
-  const numbers = line.match(/\b\d{1,2}\b/g) || [];
-  const years = numbers.find((number) => Number(number) <= 30) || "";
-  const rating = [...numbers].reverse().find((number) => Number(number) >= 1 && Number(number) <= 5) || "";
+  const years = line.match(/\b(\d{1,2})\s*(?:years?|yrs?)\b/i)?.[1] || "";
+  const rating = extractSkillRating(line);
   let observation = extractSkillRemark(line);
   observation = observation.length > 160 ? `${observation.slice(0, 157)}...` : observation;
   return {
@@ -426,10 +441,25 @@ function parseSkillRowFromLine(line) {
   };
 }
 
+function extractSkillRating(line) {
+  const text = String(line || "");
+  const explicit = text.match(/\b(?:rating|rate)\s*[:：]?\s*([1-5])\b/i)?.[1];
+  if (explicit) return explicit;
+  const withoutScale = text
+    .replace(/\b1\s+2\s+3\s+4\s+5\b/g, " ")
+    .replace(/\bpoor\b.*?\bexcellent\b/gi, " ");
+  const afterYes = withoutScale.match(/\b(?:Yes|No)\b\s+\b(?:Yes|No)\b\s+([1-5])\b/i)?.[1];
+  if (afterYes) return afterYes;
+  const nearEnd = withoutScale.match(/\b([1-5])\s*(?:N\.?A\.?)?\s*$/i)?.[1];
+  return nearEnd || "";
+}
+
 function cleanSkillRemark(value) {
   return cleanValue(value)
     .replace(/^[.:;,\s-]+/, "")
     .replace(/_+/g, " ")
+    .replace(/\bYES\s*YES\s*\d?\b/gi, " ")
+    .replace(/\bNO\s*NO\s*\d?\b/gi, " ")
     .replace(/\b(Number of children|Food handling preferences|Remarks?|Please specify)\b\s*[:：]?/gi, " ")
     .replace(/\b(Yes|No)\b/gi, " ")
     .replace(/\b\d{1,2}\b/g, " ")
@@ -478,7 +508,8 @@ function extractSkillAssessment(text, skills) {
     ["Care of disabled", /disabled|disability/i],
     ["General housework", /housework|household|cleaning|laundry/i],
     ["Cooking", /cook|cooking|food/i],
-    ["Language abilities", /mandarin|english|language/i]
+    ["Language abilities", /mandarin|english|language/i],
+    ["Other skills", /other skills|baby care|ironing|pet care/i]
   ];
   const textLines = linesOf(text);
   const rowPatterns = rows.map(([, pattern]) => pattern);
@@ -501,7 +532,31 @@ function extractSkillAssessment(text, skills) {
 
 function extractLanguagesFromSkillAssessment(skillAssessment) {
   const languageRow = skillAssessment.find((item) => item.area === "Language abilities");
-  return languageRow?.observation || "";
+  return normalizeLanguageValue(languageRow?.observation || "");
+}
+
+function extractLanguageSpecifyFromText(text) {
+  const block = nearbyLines(text, /language\s+abilities/i, 6);
+  const direct = block.match(/please specify\s*[:：]?\s*(.+?)(?=\s+(?:other skills|interviewed|care of|general housework|cooking)\b|$)/i)?.[1];
+  if (direct) return normalizeLanguageValue(direct);
+  const lines = linesOf(block);
+  const specifyIndex = lines.findIndex((line) => /please specify/i.test(line));
+  if (specifyIndex >= 0) {
+    const after = lines.slice(specifyIndex, specifyIndex + 3).join(" ");
+    const value = after.replace(/.*please specify\s*[:：]?/i, "");
+    if (value) return normalizeLanguageValue(value);
+  }
+  return "";
+}
+
+function normalizeLanguageValue(value) {
+  const cleaned = cleanSkillRemark(value)
+    .replace(/\babilities\s*\(?spoken\)?\b/gi, " ")
+    .replace(/\blanguage\b/gi, " ")
+    .replace(/\s*,\s*/g, ", ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return cleaned;
 }
 
 function extractEmploymentHistory(text, workedCountries) {
@@ -529,7 +584,7 @@ function extractMaid(text, fileBuffer) {
   const workedCountries = extractCountries(normalized);
   const employmentHistory = extractEmploymentHistory(normalized, workedCountries);
   const skillAssessment = extractSkillAssessment(normalized, skills);
-  const languagesFromSkills = extractLanguagesFromSkillAssessment(skillAssessment);
+  const languagesFromSkills = extractLanguageSpecifyFromText(normalized) || extractLanguagesFromSkillAssessment(skillAssessment);
 
   return {
     id: `m${Date.now()}`,
