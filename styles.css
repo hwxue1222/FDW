@@ -1447,6 +1447,14 @@ textarea {
   margin-top: 12px;
 }
 
+.step-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-top: 10px;
+}
+
 .stage-status-control {
   display: grid;
   gap: 5px;

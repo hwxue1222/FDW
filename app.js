@@ -537,6 +537,7 @@ function normalizeTimelineStage(item) {
   const normalizedItem = {
     ...item,
     status: statusMap[item.status] || item.status || "pending",
+    requirementsConfigured: Boolean(item.requirementsConfigured || item.customRequirements || (item.requirements || []).length),
     requirements: (item.requirements || []).map((requirement) => ({
       templateTitle: requirement.templateTitle || requirement.name || "Document",
       signerRole: requirement.signerRole || "Employer",
@@ -2139,8 +2140,9 @@ function selectedProcessHire() {
 }
 
 function requirementsForStage(maidId, stage) {
-  const customRequirements = findTimelineStep(maidId, stage)?.requirements || [];
-  return customRequirements.length ? customRequirements : stageSigningRequirements[stage] || [];
+  const step = findTimelineStep(maidId, stage);
+  if (step?.requirementsConfigured) return step.requirements || [];
+  return stageSigningRequirements[stage] || [];
 }
 
 function startEmploymentProcess(clientId, hireId) {
@@ -2561,7 +2563,7 @@ function openAddProcessStepDialog(maidId, clientId) {
       { label: uiLabel("Target Date", "目标日期"), name: "date", value: "TBC", required: false },
       { label: uiLabel("Step Note", "步骤说明"), name: "note", value: "Custom process step", required: false, full: true },
       {
-        label: uiLabel("Documents to Sign", "需要签署的文件"),
+        label: uiLabel("Forms to Fill / Sign", "需要填写 / 签署的表格"),
         name: "documents",
         type: "checkboxGroup",
         full: true,
@@ -2578,11 +2580,36 @@ function openAddProcessStepDialog(maidId, clientId) {
           date: data.date || "TBC",
           status: "pending",
           note: data.note || "Custom process step",
+          requirementsConfigured: true,
           requirements
         })
       );
       const { hire } = hireForClientMaid(clientId, maidId);
       if (hire) hire.processStarted = true;
+    }
+  );
+}
+
+function openStepFormsDialog(maidId, stage) {
+  const step = findTimelineStep(maidId, stage);
+  if (!step) return;
+  const currentRequirements = requirementsForStage(maidId, stage);
+  const currentValues = currentRequirements.map(requirementKey);
+  openDialog(
+    uiLabel(`Select Forms for ${stage}`, `选择 ${stage} 的表格`),
+    [
+      {
+        label: uiLabel("Forms to Fill / Sign", "需要填写 / 签署的表格"),
+        name: "documents",
+        type: "checkboxGroup",
+        full: true,
+        value: currentValues,
+        options: signingRequirementOptions()
+      }
+    ],
+    (data) => {
+      step.requirements = (data.documents || []).map(requirementFromOptionValue).filter(Boolean);
+      step.requirementsConfigured = true;
     }
   );
 }
@@ -3524,6 +3551,10 @@ function renderTimeline() {
             <div>
               <div class="row-title">${index + 1}. ${item.step}</div>
               <div class="row-sub">${item.note}</div>
+              <div class="step-form-actions">
+                <span class="file-chip">${uiLabel("Forms", "表格")}: ${requirementsForStage(maidId, item.step).length}</span>
+                <button class="mini-btn" type="button" data-edit-step-forms="${escapeHtml(item.step)}">${uiLabel("Select Forms", "选择表格")}</button>
+              </div>
             </div>
             ${renderStageDocuments(maidId, item.step)}
           </div>
@@ -4356,6 +4387,13 @@ function bindEvents() {
     const addStepButton = event.target.closest("[data-add-process-step]");
     if (addStepButton) {
       openAddProcessStepDialog(addStepButton.dataset.addProcessStep, addStepButton.dataset.clientId);
+      return;
+    }
+
+    const editStepFormsButton = event.target.closest("[data-edit-step-forms]");
+    if (editStepFormsButton) {
+      const maidId = $("#timelineMaidSelect").value || workersForCategory()[0]?.id || "";
+      openStepFormsDialog(maidId, editStepFormsButton.dataset.editStepForms);
       return;
     }
 
