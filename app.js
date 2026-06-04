@@ -636,14 +636,12 @@ function normalizeState(savedState) {
         }
       ]
   }));
-  data.clients = data.clients.filter((client) => client.assignedMaidId === "m4" || (client.hires || []).some((hire) => hire.maidId === "m4"));
   const realClients = data.clients.filter((client) => client.id !== "c-wati" && client.name !== "Employer");
   data.clients = realClients.length ? realClients : [];
   data.timeline = data.timeline || seed.timeline;
   data.timeline.m4 = (data.timeline.m4?.length ? data.timeline.m4 : maidEmploymentProcessSteps).map((item) => normalizeTimelineStage({ ...item }));
-  data.timeline = { m4: data.timeline.m4 };
   data.workers = [];
-  data.requirementDrafts = (data.requirementDrafts || []).filter((draft) => draft.maidId === "m4");
+  data.requirementDrafts = data.requirementDrafts || [];
   data.workers.forEach((worker) => {
     data.timeline[worker.id] = data.timeline[worker.id] || defaultTimelineSteps.map((step) => ({ ...step }));
   });
@@ -659,10 +657,15 @@ function normalizeState(savedState) {
     source: "template",
     ...doc,
     stage: normalizeDocumentStage(doc.stage)
-  })).filter((doc) => doc.maidId === "m4");
+  }));
   data.clients.forEach((client) => {
-    client.clientType = client.clientType || "new";
+    client.clientType = normalizeClientType(client.clientType || "new");
     (client.hires || []).forEach((hire) => {
+      hire.clientType = normalizeClientType(hire.clientType || client.clientType);
+      const hiredMaid = data.maids.find((maid) => maid.id === hire.maidId);
+      if (hiredMaid && isAvailableWorker(hiredMaid)) {
+        hiredMaid.status = "已雇佣";
+      }
       hire.payments = (hire.payments || []).map((payment, index) => ({
         id: payment.id || `p${client.id}${hire.id}${index}`,
         ...payment,
@@ -724,6 +727,8 @@ const uiText = {
       未到期: "未到期",
       跟进中: "跟进中",
       培训中: "培训中",
+      已雇佣: "已雇佣",
+      employed: "已雇佣",
       pending: "Pending",
       "in process": "In Process",
       completed: "Completed"
@@ -763,6 +768,8 @@ const uiText = {
       未到期: "Not Due",
       跟进中: "Following Up",
       培训中: "Training",
+      已雇佣: "Employed",
+      employed: "Employed",
       pending: "Pending",
       "in process": "In Process",
       completed: "Completed"
@@ -1064,7 +1071,7 @@ function paymentDisplayStatus(payment) {
 }
 
 function clientTypeLabel(type) {
-  return type === "transferred" ? "Transfer" : "New";
+  return normalizeClientType(type) === "transfer" ? "Transfer" : "New";
 }
 
 function findClientHirePayment(clientId, hireId, paymentId) {
@@ -1075,11 +1082,42 @@ function findClientHirePayment(clientId, hireId, paymentId) {
 }
 
 function createHireForClient(client, maidId) {
+  return addHireForClient(client, maidId, client.clientType || "new");
+}
+
+function normalizeClientType(type) {
+  return type === "transfer" || type === "transferred" ? "transfer" : "new";
+}
+
+function addHireForClient(client, maidId, clientType = "new") {
+  if (!maidId) return null;
+  client.assignedMaidId = client.assignedMaidId || maidId;
+  client.hires = client.hires || [];
+  const hire = {
+    id: `h${Date.now()}${Math.round(Math.random() * 1000)}`,
+    maidId,
+    clientType: normalizeClientType(clientType),
+    contractNo: "To be generated",
+    startDate: "TBC",
+    status: "跟进中",
+    consultant: "To be assigned",
+    payments: defaultPaymentItems()
+  };
+  client.hires.push(hire);
+  const maid = maidById(maidId);
+  if (maid && normalizeClientType(clientType) === "new") {
+    maid.status = "已雇佣";
+  }
+  return hire;
+}
+
+function replaceHireForClient(client, maidId, clientType = "new") {
   client.assignedMaidId = maidId;
   client.hires = [
     {
       id: `h${Date.now()}`,
       maidId,
+      clientType: normalizeClientType(clientType),
       contractNo: "To be generated",
       startDate: "TBC",
       status: "跟进中",
@@ -1089,8 +1127,44 @@ function createHireForClient(client, maidId) {
   ];
 }
 
-function maidSelectOptions() {
-  return workersForCategory("女佣").map((worker) => ({ value: worker.id, label: worker.name }));
+function isAvailableWorker(worker) {
+  return ["可预约", "available", "Available"].includes(worker.status);
+}
+
+function isEmployedWorker(worker) {
+  return ["已雇佣", "employed", "Employed"].includes(worker.status);
+}
+
+function maidSelectOptions(clientType = "new") {
+  const normalizedType = normalizeClientType(clientType);
+  return workersForCategory("女佣")
+    .filter((worker) => (normalizedType === "transfer" ? isEmployedWorker(worker) : isAvailableWorker(worker)))
+    .map((worker) => ({ value: worker.id, label: `${worker.name} · ${statusLabel(worker.status)}` }));
+}
+
+function bindClientTypeMaidSelect() {
+  const form = $("#recordForm");
+  const typeSelect = form?.elements?.clientType;
+  const maidSelect = form?.elements?.maidId;
+  if (!typeSelect || !maidSelect) return;
+
+  const includeBlank = Array.from(maidSelect.options).some((option) => option.value === "");
+  const blankLabel = uiLabel("Not selected yet", "暂不选择");
+  const refreshOptions = () => {
+    const options = maidSelectOptions(typeSelect.value);
+    maidSelect.innerHTML = [
+      ...(includeBlank ? [{ value: "", label: blankLabel }] : []),
+      ...options
+    ]
+      .map((option) => `<option value="${option.value}">${option.label}</option>`)
+      .join("");
+    if (!options.length && !includeBlank) {
+      maidSelect.innerHTML = `<option value="">${uiLabel("No matching maid available", "没有符合条件的女佣")}</option>`;
+    }
+  };
+
+  typeSelect.addEventListener("change", refreshOptions);
+  refreshOptions();
 }
 
 function openAssignMaidDialog(clientId) {
@@ -1100,12 +1174,23 @@ function openAssignMaidDialog(clientId) {
     uiLabel("Select Maid", "选择女佣"),
     [
       { label: uiLabel("Client", "客户"), name: "clientName", value: client.name },
-      { label: uiLabel("Maid", "女佣"), name: "maidId", type: "select", options: maidSelectOptions(), value: client.assignedMaidId || "" }
+      {
+        label: uiLabel("Client Type", "客户类型"),
+        name: "clientType",
+        type: "select",
+        options: [
+          { value: "new", label: "New" },
+          { value: "transfer", label: "Transfer" }
+        ],
+        value: "new"
+      },
+      { label: uiLabel("Maid", "女佣"), name: "maidId", type: "select", options: maidSelectOptions("new") }
     ],
     (data) => {
-      createHireForClient(client, data.maidId);
+      addHireForClient(client, data.maidId, data.clientType);
     }
   );
+  bindClientTypeMaidSelect();
 }
 
 function openPaymentDialog(clientId, hireId, paymentId = "") {
@@ -2241,10 +2326,12 @@ function renderClients() {
           <article class="detail-card">
             <div class="detail-head">
               <div>
-                <div class="row-title">${client.name} <span class="tag blue">${clientTypeLabel(client.clientType)}</span></div>
+                <div class="row-title">${client.name} <button class="mini-btn" type="button" data-assign-maid="${client.id}">${uiLabel("Add Maid", "增加女佣")}</button></div>
                 <div class="row-sub">${client.phone} · ${uiLabel("Need", "需求")}：${client.need} · ${uiLabel("Budget", "预算")} S$${client.budget}</div>
               </div>
-              <span class="tag blue">${uiLabel("Received", "已收")} ${formatMoney(paid)} / ${formatMoney(total)}</span>
+              <div class="row-actions">
+                <span class="tag blue">${uiLabel("Received", "已收")} ${formatMoney(paid)} / ${formatMoney(total)}</span>
+              </div>
             </div>
             <div class="hire-list">
               ${(client.hires || []).length
@@ -2254,7 +2341,7 @@ function renderClients() {
                     <section class="hire-card">
                       <div class="hire-head">
                         <div>
-                          <strong>${workerName(hire.maidId)}</strong>
+                          <strong>${workerName(hire.maidId)} <span class="tag blue">${clientTypeLabel(hire.clientType || client.clientType)}</span></strong>
                           <span>${hire.contractNo} · ${statusLabel(hire.status)} · ${uiLabel("Consultant", "顾问")} ${hire.consultant}</span>
                         </div>
                         <div class="row-actions">
@@ -3048,7 +3135,7 @@ function bindEvents() {
           type: "select",
           options: [
             { value: "new", label: "New" },
-            { value: "transferred", label: "Transfer" }
+            { value: "transfer", label: "Transfer" }
           ]
         },
         { label: uiLabel("Need", "需求"), name: "need" },
@@ -3058,7 +3145,7 @@ function bindEvents() {
           name: "maidId",
           type: "select",
           required: false,
-          options: [{ value: "", label: uiLabel("Not selected yet", "暂不选择") }, ...maidSelectOptions()]
+          options: [{ value: "", label: uiLabel("Not selected yet", "暂不选择") }, ...maidSelectOptions("new")]
         }
       ],
       (data) => {
@@ -3069,12 +3156,13 @@ function bindEvents() {
           hires: []
         };
         if (data.maidId) {
-          createHireForClient(client, data.maidId);
+          addHireForClient(client, data.maidId, data.clientType);
         }
         delete client.maidId;
         state.clients.push(client);
       }
     );
+    bindClientTypeMaidSelect();
   });
 
   document.addEventListener("click", (event) => {
