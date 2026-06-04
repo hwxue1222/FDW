@@ -1284,13 +1284,6 @@ function buildMaidProfilePdf(maid) {
     ["Medical History", editableMedicalHistory(maid).map((item) => `${item.item}: ${item.status}`).join("; ")]
   ]), twoColWidths);
 
-  pdf.heading("Scope of Work and Skills");
-  pdf.table(
-    ["Scope of Work", "Willing", "Experience", "Years", "Rating", "Remarks"],
-    (maid.skillAssessment || []).map((item) => [item.area, item.willingness, item.experience, item.years, item.rating, item.observation]),
-    [150, 50, 65, 45, 50, 190]
-  );
-
   pdf.heading("Method of Evaluation");
   {
     const selectedMethods = new Set(maid.evaluationMethods || []);
@@ -1300,6 +1293,13 @@ function buildMaidProfilePdf(maid) {
       [65, 485]
     );
   }
+
+  pdf.heading("Scope of Work and Skills");
+  pdf.table(
+    ["Scope of Work", "Willing", "Experience", "Years", "Rating", "Remarks"],
+    (maid.skillAssessment || []).map((item) => [item.area, item.willingness, item.experience, item.years, item.rating, item.observation]),
+    [150, 50, 65, 45, 50, 190]
+  );
 
   pdf.heading("Overseas Employment History");
   pdf.table(
