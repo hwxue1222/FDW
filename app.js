@@ -1006,6 +1006,12 @@ document.addEventListener("click", (event) => {
 });
 
 document.addEventListener("click", (event) => {
+  const editSectionTarget = event.target.closest("[data-edit-maid-section]");
+  if (editSectionTarget) {
+    openMaidProfileSectionDialog(editSectionTarget.dataset.maidId || activeMaidDetailId, editSectionTarget.dataset.editMaidSection);
+    return;
+  }
+
   const detailTarget = event.target.closest("[data-open-maid-detail]");
   if (detailTarget) {
     activeMaidDetailId = detailTarget.dataset.openMaidDetail || "";
@@ -1259,6 +1265,79 @@ function openPaymentDialog(clientId, hireId, paymentId = "") {
   );
 }
 
+function openMaidProfileSectionDialog(maidId, section) {
+  const maid = maidById(maidId);
+  if (!maid) return;
+
+  if (section === "employment") {
+    openDialog(
+      uiLabel("Edit Overseas Employment History", "编辑海外工作经历"),
+      [
+        {
+          label: uiLabel("One record per line: From | To | Country | Employer | Duties", "每行一条：From | To | Country | Employer | Duties"),
+          name: "employmentHistory",
+          type: "textarea",
+          full: true,
+          required: false,
+          value: formatEmploymentLines(maid.employmentHistory)
+        }
+      ],
+      (data) => {
+        maid.employmentHistory = parseEmploymentLines(data.employmentHistory);
+      }
+    );
+    return;
+  }
+
+  if (section === "mom") {
+    openDialog(
+      uiLabel("Edit MOM Singapore Records", "编辑 MOM 新加坡记录"),
+      [
+        {
+          label: uiLabel("One record per line: From | To | Employer | Industry | Remarks", "每行一条：From | To | Employer | Industry | Remarks"),
+          name: "momHistory",
+          type: "textarea",
+          full: true,
+          required: false,
+          value: formatMomHistoryLines(maid.momHistory)
+        }
+      ],
+      (data) => {
+        maid.momHistory = parseMomHistoryLines(data.momHistory);
+      }
+    );
+    return;
+  }
+
+  if (section === "interview") {
+    openDialog(
+      uiLabel("Edit Interview Availability and Biodata Remarks", "编辑面试方式与 Biodata 备注"),
+      [
+        {
+          label: uiLabel("Interview Availability, one per line", "面试方式，每行一条"),
+          name: "interviewAvailability",
+          type: "textarea",
+          full: true,
+          required: false,
+          value: formatListLines(maid.interviewAvailability)
+        },
+        {
+          label: uiLabel("Biodata Remarks", "Biodata 备注"),
+          name: "biodataRemarks",
+          type: "textarea",
+          full: true,
+          required: false,
+          value: maid.biodataRemarks || ""
+        }
+      ],
+      (data) => {
+        maid.interviewAvailability = splitList(data.interviewAvailability);
+        maid.biodataRemarks = data.biodataRemarks || "";
+      }
+    );
+  }
+}
+
 function documentsForMaid(maidId) {
   return state.documents.filter((doc) => doc.maidId === maidId);
 }
@@ -1371,6 +1450,33 @@ function parseEmploymentLines(value) {
       const [from = "", to = "", country = "", employer = "", duties = ""] = line.split("|").map((item) => item.trim());
       return { from, to, country, employer, duties };
     });
+}
+
+function formatEmploymentLines(items = []) {
+  return items
+    .map((item) => [item.from, item.to, item.country, item.employer, item.duties].map((value) => value || "").join(" | "))
+    .join("\n");
+}
+
+function parseMomHistoryLines(value) {
+  return String(value || "")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const [startDate = "", endDate = "", employer = "", industry = "", remarks = ""] = line.split("|").map((item) => item.trim());
+      return { startDate, endDate, employer, industry, remarks };
+    });
+}
+
+function formatMomHistoryLines(items = []) {
+  return items
+    .map((item) => [item.startDate, item.endDate, item.employer, item.industry, item.remarks].map((value) => value || "").join(" | "))
+    .join("\n");
+}
+
+function formatListLines(value) {
+  return Array.isArray(value) ? value.join("\n") : String(value || "");
 }
 
 function normalizeImportedMaid(maid) {
@@ -2057,6 +2163,7 @@ function detailFields(fields) {
 
 function renderMaidDetail(maid, options = {}) {
   const isFrontDetail = options.context === "front";
+  const canEditProfileSections = !isFrontDetail && isAdminLoggedIn();
   const selectedEvaluationMethods = new Set(maid.evaluationMethods || []);
   const medicalRows = (maid.medicalHistory || [])
     .map((item) => {
@@ -2103,7 +2210,7 @@ function renderMaidDetail(maid, options = {}) {
           <span>${[item.startDate, item.endDate].filter(Boolean).join(" - ") || "-"}</span>
           <span>${item.employer || "-"}</span>
           <span>${item.industry || "-"}</span>
-          <span>-</span>
+          <span>${item.remarks || "-"}</span>
         </div>
       `
     )
@@ -2209,7 +2316,10 @@ function renderMaidDetail(maid, options = {}) {
       </section>
 
       <section class="detail-section">
-        <h3>${uiLabel("Overseas Employment History", "海外工作经历")}</h3>
+        <div class="detail-section-title">
+          <h3>${uiLabel("Overseas Employment History", "海外工作经历")}</h3>
+          ${canEditProfileSections ? `<button class="mini-btn" type="button" data-edit-maid-section="employment" data-maid-id="${maid.id}">${uiLabel("Edit", "编辑")}</button>` : ""}
+        </div>
         <div class="history-row maid-history-row history-head">
           <span>${uiLabel("Period", "时间")}</span>
           <span>${uiLabel("Country", "国家")}</span>
@@ -2220,7 +2330,10 @@ function renderMaidDetail(maid, options = {}) {
       </section>
 
       <section class="detail-section">
-        <h3>${uiLabel("MOM Singapore Records", "MOM 新加坡记录")}</h3>
+        <div class="detail-section-title">
+          <h3>${uiLabel("MOM Singapore Records", "MOM 新加坡记录")}</h3>
+          ${canEditProfileSections ? `<button class="mini-btn" type="button" data-edit-maid-section="mom" data-maid-id="${maid.id}">${uiLabel("Edit", "编辑")}</button>` : ""}
+        </div>
         <div class="history-row maid-history-row history-head">
           <span>${uiLabel("Period", "时间")}</span>
           <span>${uiLabel("Employer", "雇主")}</span>
@@ -2231,7 +2344,10 @@ function renderMaidDetail(maid, options = {}) {
       </section>
 
       <section class="detail-section">
-        <h3>${uiLabel("Interview Availability and Biodata Remarks", "面试与 Biodata 备注")}</h3>
+        <div class="detail-section-title">
+          <h3>${uiLabel("Interview Availability and Biodata Remarks", "面试与 Biodata 备注")}</h3>
+          ${canEditProfileSections ? `<button class="mini-btn" type="button" data-edit-maid-section="interview" data-maid-id="${maid.id}">${uiLabel("Edit", "编辑")}</button>` : ""}
+        </div>
         <div class="profile-grid maid-fixed-grid">
           ${detailFields([
             [uiLabel("Interview Availability", "可面试方式"), maid.interviewAvailability],
