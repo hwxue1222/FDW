@@ -656,6 +656,8 @@ function extractMaid(text, fileBuffer) {
   const employmentHistory = extractEmploymentHistory(normalized, workedCountries);
   const skillAssessment = extractSkillAssessment(normalized, skills);
   const languagesFromSkills = extractLanguagesFromSkillAssessment(skillAssessment) || extractLanguageSpecifyFromText(normalized);
+  const medicalHistory = extractMedicalHistory(normalized);
+  const medicalStatusFor = (itemName) => medicalHistory.find((item) => item.item.toLowerCase() === itemName.toLowerCase())?.status || "";
 
   return {
     id: `m${Date.now()}`,
@@ -682,9 +684,11 @@ function extractMaid(text, fileBuffer) {
     workedCountries,
     offDay: valueAfter(normalized, ["Rest Day", "Off Day"]) || "To be confirmed",
     medicalStatus: valueAfter(normalized, ["Medical Status", "Medical Condition"]) || "No declared chronic illness",
-    medicalHistory: extractMedicalHistory(normalized),
-    foodHandling: valueAfter(normalized, ["Food Handling", "Food Preference"]) || "To be filled",
+    medicalHistory,
+    foodHandling: valueAfter(normalized, ["Food handling preferences", "Food Handling", "Food Preference"]) || "To be filled",
     allergies: valueAfter(normalized, ["Allergies", "Allergy", "Fears", "Restrictions"]) || "To be filled",
+    physicalDisabilities: medicalStatusFor("Physical disabilities"),
+    dietaryRestrictions: medicalStatusFor("Dietary restrictions"),
     evaluationMethods: ["Based on FDW's declaration, no evaluation/observation by EA or overseas training centre / EA"],
     interviewAvailability: [],
     skills,

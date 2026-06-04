@@ -337,6 +337,8 @@ const defaultMaidDetails = {
   medicalStatus: "Medical check pending",
   foodHandling: "To be filled",
   allergies: "To be filled",
+  physicalDisabilities: "",
+  dietaryRestrictions: "",
   evaluationMethods: [],
   interviewAvailability: [],
   duties: [],
@@ -625,19 +627,27 @@ function normalizeState(savedState) {
       ...seed.documents.map((doc) => ({ ...doc }))
     ];
   }
-  data.maids = (data.maids || []).map((maid) => ({
-    ...defaultMaidDetails,
-    ...(seed.maids.find((item) => item.id === maid.id) || {}),
-    ...maid,
-    workedCountries: maid.workedCountries || seed.maids.find((item) => item.id === maid.id)?.workedCountries || [],
-    duties: maid.duties || seed.maids.find((item) => item.id === maid.id)?.duties || maid.skills || [],
-    skillAssessment: maid.skillAssessment || seed.maids.find((item) => item.id === maid.id)?.skillAssessment || [],
-    medicalHistory: maid.medicalHistory || seed.maids.find((item) => item.id === maid.id)?.medicalHistory || [],
-    employmentHistory: maid.employmentHistory || seed.maids.find((item) => item.id === maid.id)?.employmentHistory || [],
-    momHistory: maid.momHistory || seed.maids.find((item) => item.id === maid.id)?.momHistory || [],
-    evaluationMethods: maid.evaluationMethods || seed.maids.find((item) => item.id === maid.id)?.evaluationMethods || [],
-    interviewAvailability: maid.interviewAvailability || seed.maids.find((item) => item.id === maid.id)?.interviewAvailability || []
-  }));
+  data.maids = (data.maids || []).map((maid) => {
+    const seedMaid = seed.maids.find((item) => item.id === maid.id);
+    const mergedMaid = {
+      ...defaultMaidDetails,
+      ...(seedMaid || {}),
+      ...maid,
+      workedCountries: maid.workedCountries || seedMaid?.workedCountries || [],
+      duties: maid.duties || seedMaid?.duties || maid.skills || [],
+      skillAssessment: maid.skillAssessment || seedMaid?.skillAssessment || [],
+      medicalHistory: maid.medicalHistory || seedMaid?.medicalHistory || [],
+      employmentHistory: maid.employmentHistory || seedMaid?.employmentHistory || [],
+      momHistory: maid.momHistory || seedMaid?.momHistory || [],
+      evaluationMethods: maid.evaluationMethods || seedMaid?.evaluationMethods || [],
+      interviewAvailability: maid.interviewAvailability || seedMaid?.interviewAvailability || []
+    };
+    return {
+      ...mergedMaid,
+      physicalDisabilities: maid.physicalDisabilities || medicalRecordStatus(mergedMaid, "Physical disabilities"),
+      dietaryRestrictions: maid.dietaryRestrictions || medicalRecordStatus(mergedMaid, "Dietary restrictions")
+    };
+  });
   removeTestImportedMaids(data);
   data.clients = (data.clients || []).map((client) => ({
     ...client,
@@ -900,6 +910,29 @@ function heightWeightValue(maid) {
   const height = maid.height ? `${maid.height} cm` : "";
   const weight = maid.weight ? `${maid.weight} kg` : "";
   return [height, weight].filter(Boolean).join(" / ") || "-";
+}
+
+function medicalRecordStatus(maid, itemName) {
+  return (maid.medicalHistory || []).find((item) => String(item.item || "").toLowerCase() === itemName.toLowerCase())?.status || "";
+}
+
+function foodHandlingParts(value) {
+  const text = String(value || "");
+  const options = [];
+  if (/no\s*pork/i.test(text)) options.push("No pork");
+  if (/no\s*beef/i.test(text)) options.push("No beef");
+  const other = text
+    .replace(/preferences?\s*[:：]?/i, "")
+    .replace(/no\s*pork/gi, "")
+    .replace(/no\s*beef/gi, "")
+    .replace(/[;,:：/]+/g, " ")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+  return { options, other: other && !/^(to be filled|-|none|nil|n\/a)$/i.test(other) ? other : "" };
+}
+
+function formatFoodHandling(options = [], other = "") {
+  return [...options, other].map((item) => String(item || "").trim()).filter(Boolean).join("; ");
 }
 
 function setSelectOptions(select, options) {
@@ -1203,8 +1236,10 @@ function buildMaidProfilePdf(maid) {
   pdf.heading("Health, Food Handling and Restrictions");
   pdf.table(["Field", "Value", "Field", "Value"], labelValueRows([
     ["Medical Status", maid.medicalStatus],
-    ["Food Handling", maid.foodHandling],
-    ["Allergies / Fears / Restrictions", maid.allergies],
+    ["Allergies (if any)", maid.allergies],
+    ["Physical disabilities", maid.physicalDisabilities || medicalRecordStatus(maid, "Physical disabilities")],
+    ["Dietary restrictions", maid.dietaryRestrictions || medicalRecordStatus(maid, "Dietary restrictions")],
+    ["Food handling preferences", maid.foodHandling],
     ["Medical History", (maid.medicalHistory || []).map((item) => `${item.item}: ${item.status}`).join("; ")]
   ]), twoColWidths);
 
@@ -1703,12 +1738,25 @@ function openMaidProfileSectionDialog(maidId, section) {
   }
 
   if (section === "health") {
+    const foodHandling = foodHandlingParts(maid.foodHandling);
     openDialog(
       uiLabel("Edit Health, Food Handling and Restrictions", "编辑健康、饮食与限制"),
       [
         { label: "Medical Status", name: "medicalStatus", value: maid.medicalStatus || "", full: true },
-        { label: "Food Handling", name: "foodHandling", value: maid.foodHandling || "", full: true },
-        { label: "Allergies / Fears / Restrictions", name: "allergies", value: maid.allergies || "", type: "textarea", full: true, required: false },
+        { label: "Allergies (if any)", name: "allergies", value: maid.allergies || "", type: "textarea", full: true, required: false },
+        { label: "Physical disabilities", name: "physicalDisabilities", value: maid.physicalDisabilities || medicalRecordStatus(maid, "Physical disabilities"), full: true, required: false },
+        { label: "Dietary restrictions", name: "dietaryRestrictions", value: maid.dietaryRestrictions || medicalRecordStatus(maid, "Dietary restrictions"), full: true, required: false },
+        {
+          label: "Food handling preferences",
+          name: "foodHandlingOptions",
+          type: "checkboxGroup",
+          full: true,
+          options: ["No pork", "No beef"],
+          value: foodHandling.options,
+          otherName: "foodHandlingOther",
+          otherValue: foodHandling.other,
+          otherPlaceholder: "Others"
+        },
         {
           label: "Medical History",
           name: "medicalHistory",
@@ -1723,8 +1771,10 @@ function openMaidProfileSectionDialog(maidId, section) {
       ],
       (data) => {
         maid.medicalStatus = data.medicalStatus;
-        maid.foodHandling = data.foodHandling;
         maid.allergies = data.allergies;
+        maid.physicalDisabilities = data.physicalDisabilities;
+        maid.dietaryRestrictions = data.dietaryRestrictions;
+        maid.foodHandling = formatFoodHandling(data.foodHandlingOptions, data.foodHandlingOther);
         maid.medicalHistory = data.medicalHistory;
       }
     );
@@ -2786,8 +2836,10 @@ function renderMaidDetail(maid, options = {}) {
         <div class="profile-grid maid-fixed-grid">
           ${detailFields([
             [uiLabel("Medical Status", "医疗状态"), maid.medicalStatus],
-            [uiLabel("Food Handling", "饮食 / 食物处理"), maid.foodHandling],
-            [uiLabel("Allergies / Fears / Restrictions", "过敏 / 害怕 / 限制"), maid.allergies]
+            ["Allergies (if any)", maid.allergies],
+            ["Physical disabilities", maid.physicalDisabilities || medicalRecordStatus(maid, "Physical disabilities")],
+            ["Dietary restrictions", maid.dietaryRestrictions || medicalRecordStatus(maid, "Dietary restrictions")],
+            ["Food handling preferences", maid.foodHandling]
           ])}
         </div>
         <div class="medical-grid">${medicalRows || `<div class="empty-state compact">${uiLabel("No medical history yet.", "暂无医疗记录。")}</div>`}</div>
@@ -3338,6 +3390,7 @@ function openDialog(title, fields, onSubmit) {
         `;
       }
       if (field.type === "checkboxGroup") {
+        const checkedValues = new Set(Array.isArray(field.value) ? field.value : []);
         return `
           <fieldset class="${field.full ? "full" : ""}">
             <legend>${field.label}</legend>
@@ -3346,7 +3399,7 @@ function openDialog(title, fields, onSubmit) {
                 .map(
                   (option) => `
                     <label class="check-option">
-                      <input type="checkbox" name="${field.name}" value="${option}" />
+                      <input type="checkbox" name="${field.name}" value="${option}" ${checkedValues.has(option) ? "checked" : ""} />
                       <span>${option}</span>
                     </label>
                   `
@@ -3355,7 +3408,7 @@ function openDialog(title, fields, onSubmit) {
             </div>
             ${
               field.otherName
-                ? `<label class="other-label">${field.otherPlaceholder || "其他"}<input class="other-input" name="${field.otherName}" /></label>`
+                ? `<label class="other-label">${field.otherPlaceholder || "其他"}<input class="other-input" name="${field.otherName}" value="${escapeHtml(field.otherValue || "")}" /></label>`
                 : ""
             }
           </fieldset>
