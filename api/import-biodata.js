@@ -446,6 +446,7 @@ function extractSkillRating(line) {
   const explicit = text.match(/\b(?:rating|rate)\s*[:：]?\s*([1-5])\b/i)?.[1];
   if (explicit) return explicit;
   const withoutScale = text
+    .replace(/^\s*[1-7]\s+/, " ")
     .replace(/\b1\s+2\s+3\s+4\s+5\b/g, " ")
     .replace(/\bpoor\b.*?\bexcellent\b/gi, " ");
   const afterYes = withoutScale.match(/\b(?:Yes|No)\b\s+\b(?:Yes|No)\b\s+([1-5])\b/i)?.[1];
@@ -503,22 +504,21 @@ function skillSnippetForLine(lines, index, allRowPatterns) {
 
 function extractSkillAssessment(text, skills) {
   const rows = [
-    ["Care of Infants / children", /infant|children|child care|baby/i],
-    ["Care of elderly", /elderly|aged|old folk/i],
-    ["Care of disabled", /disabled|disability/i],
-    ["General housework", /housework|household|cleaning|laundry/i],
-    ["Cooking", /cook|cooking|food/i],
-    ["Language abilities", /mandarin|english|language/i],
-    ["Other skills", /other skills|baby care|ironing|pet care/i]
+    { no: 1, area: "Care of Infants / children", pattern: /care of infants?\/?\s*children|infant|children|child care|baby/i, start: /^care of infants?\/?\s*children\b/i },
+    { no: 2, area: "Care of elderly", pattern: /care of elderly|elderly|aged|old folk/i, start: /^care of elderly\b/i },
+    { no: 3, area: "Care of disabled", pattern: /care of disabled|disabled|disability/i, start: /^care of disabled\b/i },
+    { no: 4, area: "General housework", pattern: /general housework|housework|household|cleaning|laundry/i, start: /^general housework\b/i },
+    { no: 5, area: "Cooking", pattern: /\bcooking\b|\bcook\b|cuisines?/i, start: /^cooking\b/i },
+    { no: 6, area: "Language abilities", pattern: /language abilities|mandarin|english|language/i, start: /^language abilities/i },
+    { no: 7, area: "Other skills", pattern: /other skills|baby care|ironing|pet care/i, start: /^other skills/i }
   ];
   const textLines = linesOf(text);
-  const rowPatterns = rows.map(([, pattern]) => pattern);
+  const rowStartPattern = /^\s*(?:[1-7]\s+)?(?:care of infants|care of elderly|care of disabled|general housework|cooking|language abilities|other skills)\b/i;
   return rows
-    .filter(([, pattern]) => pattern.test(text) || skills.some((skill) => pattern.test(skill)))
-    .map(([area, pattern]) => {
-      const matchingIndex = textLines.findIndex((line) => pattern.test(line) && /\b(Yes|No|\d{1,2}|please specify)\b/i.test(line));
-      const matchingLine = matchingIndex >= 0 ? skillSnippetForLine(textLines, matchingIndex, rowPatterns) : "";
-      const parsed = matchingLine ? parseSkillRowFromLine(matchingLine.replace(new RegExp(area, "i"), "")) : {};
+    .filter(({ pattern }) => pattern.test(text) || skills.some((skill) => pattern.test(skill)))
+    .map(({ no, area, pattern, start }) => {
+      const block = skillBlockForRow(textLines, no, pattern, start, rowStartPattern);
+      const parsed = block ? parseSkillRowFromLine(block.replace(new RegExp(area, "i"), "")) : {};
       return {
         area,
         willingness: parsed.willingness || "Yes",
@@ -530,9 +530,26 @@ function extractSkillAssessment(text, skills) {
     });
 }
 
+function skillBlockForRow(lines, rowNo, areaPattern, startPattern, rowStartPattern) {
+  const rowNoPattern = new RegExp(`^\\s*${rowNo}\\s+`);
+  let start = lines.findIndex((line) => rowNoPattern.test(line) && areaPattern.test(line));
+  if (start < 0) start = lines.findIndex((line) => startPattern.test(line));
+  if (start < 0) return "";
+  const block = [lines[start]];
+  for (let index = start + 1; index < lines.length; index += 1) {
+    const line = lines[index];
+    if (rowStartPattern.test(line)) break;
+    if (/^\s*[1-7]\s+(?:care|general|cooking|language|other)\b/i.test(line)) break;
+    block.push(line);
+    if (block.length >= 8) break;
+  }
+  return block.join(" ");
+}
+
 function extractLanguagesFromSkillAssessment(skillAssessment) {
   const languageRow = skillAssessment.find((item) => item.area === "Language abilities");
-  return normalizeLanguageValue(languageRow?.observation || "");
+  const value = normalizeLanguageValue(languageRow?.observation || "");
+  return /auto-extracted|confirm details/i.test(value) ? "" : value;
 }
 
 function extractLanguageSpecifyFromText(text) {
@@ -584,7 +601,7 @@ function extractMaid(text, fileBuffer) {
   const workedCountries = extractCountries(normalized);
   const employmentHistory = extractEmploymentHistory(normalized, workedCountries);
   const skillAssessment = extractSkillAssessment(normalized, skills);
-  const languagesFromSkills = extractLanguageSpecifyFromText(normalized) || extractLanguagesFromSkillAssessment(skillAssessment);
+  const languagesFromSkills = extractLanguagesFromSkillAssessment(skillAssessment) || extractLanguageSpecifyFromText(normalized);
 
   return {
     id: `m${Date.now()}`,
