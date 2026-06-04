@@ -460,7 +460,7 @@ function cleanSkillRemark(value) {
     .replace(/_+/g, " ")
     .replace(/\bYES\s*YES\s*\d?\b/gi, " ")
     .replace(/\bNO\s*NO\s*\d?\b/gi, " ")
-    .replace(/\b(Number of children|Food handling preferences|Remarks?|Please specify)\b\s*[:：]?/gi, " ")
+    .replace(/\b(Number of children|Food handling preferences|Remarks?|Please specify|age range|cuisines?|languages?|skills?)\b\s*[:：]?/gi, " ")
     .replace(/\b(Yes|No)\b/gi, " ")
     .replace(/\b\d{1,2}\b/g, " ")
     .replace(/\s+/g, " ")
@@ -469,7 +469,7 @@ function cleanSkillRemark(value) {
 
 function extractSkillRemark(line) {
   const text = String(line || "").replace(/\s+/g, " ");
-  const specify = text.match(/please specify\s*[:：]?\s*(.+?)(?=\s+(?:number of children|food handling preferences|remarks?|care of|general housework|cooking|language abilities)\b|$)/i);
+  const specify = text.match(/please specify(?:\s+[a-z ,/()]+?)?\s*[:：]?\s*(.+?)(?=\s+(?:number of children|food handling preferences|remarks?|care of|general housework|cooking|language abilities|other skills)\b|$)/i);
   if (specify?.[1]) return cleanSkillRemark(specify[1]);
 
   const labelled = text.match(/(?:number of children|food handling preferences|remarks?)\s*[:：]?\s*(.+?)(?=\s+(?:please specify|care of|general housework|cooking|language abilities)\b|$)/i);
@@ -480,7 +480,7 @@ function extractSkillRemark(line) {
 
 function skillSnippetForLine(lines, index, allRowPatterns) {
   const snippet = [lines[index]];
-  let previousWasSpecify = /please specify\s*[:：]?\s*$/i.test(lines[index]);
+  let previousWasSpecify = /please specify(?:\s+[a-z ,/()]+?)?\s*[:：]?\s*$/i.test(lines[index]);
   for (let offset = 1; offset <= 3; offset += 1) {
     const next = lines[index + offset];
     if (!next) break;
@@ -488,7 +488,7 @@ function skillSnippetForLine(lines, index, allRowPatterns) {
     if (startsNextScope && !/please specify|number of children|food handling preferences|remarks?/i.test(next)) break;
     if (/please specify|number of children|food handling preferences|remarks?/i.test(next)) {
       snippet.push(next);
-      previousWasSpecify = /please specify\s*[:：]?\s*$/i.test(next);
+      previousWasSpecify = /please specify(?:\s+[a-z ,/()]+?)?\s*[:：]?\s*$/i.test(next);
       continue;
     }
     if (previousWasSpecify) {
