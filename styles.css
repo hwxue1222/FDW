@@ -708,9 +708,37 @@ textarea {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
+  width: 100%;
+  padding: 0;
+  border: 0;
   color: var(--green-dark);
+  background: transparent;
   font-size: 14px;
   font-weight: 800;
+  text-align: left;
+}
+
+.admin-category-heading span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.admin-category-heading span::before {
+  content: "v";
+  display: inline-grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 5px;
+  background: #eef5f1;
+  color: var(--green-dark);
+  font-size: 10px;
+  line-height: 1;
+}
+
+.admin-category-group.collapsed .admin-category-heading span::before {
+  content: ">";
 }
 
 .admin-category-heading em {
@@ -728,6 +756,10 @@ textarea {
 .admin-module-list {
   display: grid;
   gap: 6px;
+}
+
+.admin-category-group.collapsed .admin-module-list {
+  display: none;
 }
 
 .sidebar button {
@@ -770,6 +802,10 @@ textarea {
   gap: 5px;
 }
 
+.admin-layout.sidebar-collapsed .admin-category-heading span::before {
+  content: none;
+}
+
 .admin-layout.sidebar-collapsed .admin-category-heading span {
   display: grid;
   place-items: center;
@@ -797,7 +833,7 @@ textarea {
   gap: 5px;
 }
 
-.admin-layout.sidebar-collapsed .sidebar button:not(.sidebar-toggle) {
+.admin-layout.sidebar-collapsed .sidebar button:not(.sidebar-toggle):not(.admin-category-heading) {
   display: grid;
   place-items: center;
   min-height: 38px;
@@ -806,7 +842,7 @@ textarea {
   text-align: center;
 }
 
-.admin-layout.sidebar-collapsed .sidebar button:not(.sidebar-toggle)::before {
+.admin-layout.sidebar-collapsed .sidebar button:not(.sidebar-toggle):not(.admin-category-heading)::before {
   content: attr(data-short);
   font-size: 13px;
   font-weight: 800;
@@ -1896,11 +1932,11 @@ menu {
   }
 
   .admin-layout.sidebar-collapsed .admin-category-heading span::before,
-  .admin-layout.sidebar-collapsed .sidebar button:not(.sidebar-toggle)::before {
+  .admin-layout.sidebar-collapsed .sidebar button:not(.sidebar-toggle):not(.admin-category-heading)::before {
     content: none;
   }
 
-  .admin-layout.sidebar-collapsed .sidebar button:not(.sidebar-toggle) {
+  .admin-layout.sidebar-collapsed .sidebar button:not(.sidebar-toggle):not(.admin-category-heading) {
     display: block;
     padding: 12px 14px;
     font-size: 13px;

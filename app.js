@@ -728,6 +728,7 @@ let currentSession = parseStoredJson("bybridgeAdminSession");
 let activeViewId = ["front", "admin"].includes(localStorage.getItem("bybridgeActiveView")) ? localStorage.getItem("bybridgeActiveView") : "front";
 let activeAdminTabId = localStorage.getItem("bybridgeAdminTab") || "maids";
 let adminSidebarCollapsed = localStorage.getItem("bybridgeAdminSidebar") === "collapsed";
+let adminCategoryCollapsed = parseStoredJson("bybridgeAdminCategoryCollapsed") || {};
 let adminAccountsCache = [];
 let remoteSaveTimer = null;
 let isHydratingSharedState = false;
@@ -855,6 +856,10 @@ function uiLabel(en, zh) {
 
 function shortLabel(value) {
   return String(value || "").trim().slice(0, 1).toUpperCase();
+}
+
+function saveAdminCategoryCollapsed() {
+  localStorage.setItem("bybridgeAdminCategoryCollapsed", JSON.stringify(adminCategoryCollapsed));
 }
 
 function currentUser() {
@@ -2729,12 +2734,13 @@ function renderAdminCategoryTabs() {
     .map((key) => {
       const count = workersForCategory(key).length;
       const categoryTitle = localized(categoryMeta[key].title);
+      const isCollapsed = Boolean(adminCategoryCollapsed[key]);
       return `
-        <section class="admin-category-group">
-          <div class="admin-category-heading">
+        <section class="admin-category-group ${isCollapsed ? "collapsed" : ""}">
+          <button class="admin-category-heading" type="button" data-toggle-admin-category="${key}" aria-expanded="${String(!isCollapsed)}">
             <span data-short="${shortLabel(categoryTitle)}">${categoryTitle}</span>
             <em>${count}</em>
-          </div>
+          </button>
           <div class="admin-module-list">
             ${modules
               .map(
@@ -3815,6 +3821,15 @@ function bindEvents() {
   });
 
   $("#adminCategoryTabs").addEventListener("click", (event) => {
+    const toggleButton = event.target.closest("[data-toggle-admin-category]");
+    if (toggleButton) {
+      const category = toggleButton.dataset.toggleAdminCategory;
+      adminCategoryCollapsed[category] = !adminCategoryCollapsed[category];
+      saveAdminCategoryCollapsed();
+      renderAdminCategoryTabs();
+      return;
+    }
+
     const tabOnlyButton = event.target.closest("[data-admin-tab-only]");
     if (tabOnlyButton) {
       activateAdminTab(tabOnlyButton.dataset.adminTabOnly || "maids");
