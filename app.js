@@ -565,6 +565,29 @@ function normalizeDocumentStage(stage) {
   return stage;
 }
 
+function isTestImportedMaid(maid) {
+  const name = String(maid?.name || "").trim().toUpperCase();
+  const refNo = String(maid?.refNo || "").trim().toUpperCase();
+  return ["MUHAROH", "CHINESE FOOD"].includes(name) || ["PDF-625006", "PDF-017080"].includes(refNo);
+}
+
+function removeTestImportedMaids(data) {
+  const removedIds = new Set((data.maids || []).filter(isTestImportedMaid).map((maid) => maid.id));
+  if (!removedIds.size) return;
+  data.maids = (data.maids || []).filter((maid) => !removedIds.has(maid.id));
+  data.clients = (data.clients || [])
+    .map((client) => ({
+      ...client,
+      hires: (client.hires || []).filter((hire) => !removedIds.has(hire.maidId))
+    }))
+    .filter((client) => client.hires.length || client.assignedMaidId && !removedIds.has(client.assignedMaidId));
+  data.documents = (data.documents || []).filter((doc) => !removedIds.has(doc.maidId));
+  data.requirementDrafts = (data.requirementDrafts || []).filter((draft) => !removedIds.has(draft.maidId));
+  removedIds.forEach((id) => {
+    delete data.timeline?.[id];
+  });
+}
+
 function normalizeState(savedState) {
   const data = savedState || seed;
   const needsWatiReset = data.workflowVersion !== "wati-employment-process-v1";
@@ -616,6 +639,7 @@ function normalizeState(savedState) {
     evaluationMethods: maid.evaluationMethods || seed.maids.find((item) => item.id === maid.id)?.evaluationMethods || [],
     interviewAvailability: maid.interviewAvailability || seed.maids.find((item) => item.id === maid.id)?.interviewAvailability || []
   }));
+  removeTestImportedMaids(data);
   data.clients = (data.clients || []).map((client) => ({
     ...client,
     hires:
