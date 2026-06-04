@@ -1185,6 +1185,36 @@ function makePdfDocument() {
       y += rowHeight + 4;
     });
   };
+  const infoGrid = (pairs) => {
+    const cellWidth = contentWidth / 2;
+    const rowPadding = 8;
+    for (let index = 0; index < pairs.length; index += 2) {
+      const rowPairs = [pairs[index] || ["", ""], pairs[index + 1] || ["", ""]];
+      const wrappedCells = rowPairs.map(([label, value]) => {
+        const labelLines = wrapPdfText(label, cellWidth - rowPadding * 2, 7.5);
+        const valueLines = wrapPdfText(value, cellWidth - rowPadding * 2, 8.8);
+        return { labelLines, valueLines };
+      });
+      const rowHeight = Math.max(
+        34,
+        ...wrappedCells.map((cell) => cell.labelLines.length * 9 + cell.valueLines.length * 11 + 14)
+      );
+      ensureSpace(rowHeight + 4);
+      rect(margin, y, contentWidth, rowHeight, { fill: "#ffffff", stroke: "#dfe7e3" });
+      line(margin + cellWidth, y, margin + cellWidth, y + rowHeight, "#d8e2dd");
+      wrappedCells.forEach((cell, cellIndex) => {
+        const x = margin + cellIndex * cellWidth + rowPadding;
+        cell.labelLines.forEach((lineText, lineIndex) => {
+          text(lineText, x, y + 11 + lineIndex * 9, { size: 7.5, bold: true, color: "#61706a" });
+        });
+        const valueTop = y + 13 + cell.labelLines.length * 9;
+        cell.valueLines.forEach((lineText, lineIndex) => {
+          text(lineText, x, valueTop + lineIndex * 11, { size: 8.8, color: "#1f2925" });
+        });
+      });
+      y += rowHeight + 4;
+    }
+  };
   const finish = () => {
     pages.push(commands.join("\n"));
     const objects = [];
@@ -1218,7 +1248,7 @@ function makePdfDocument() {
     return new Blob([output], { type: "application/pdf" });
   };
 
-  return { addPage, ensureSpace, text, line, rect, heading, table, finish, get y() { return y; }, set y(value) { y = value; }, margin, contentWidth, pageWidth, pageHeight };
+  return { addPage, ensureSpace, text, line, rect, heading, table, infoGrid, finish, get y() { return y; }, set y(value) { y = value; }, margin, contentWidth, pageWidth, pageHeight };
 }
 
 function maidPdfFileName(maid) {
@@ -1227,16 +1257,6 @@ function maidPdfFileName(maid) {
 
 function buildMaidProfilePdf(maid) {
   const pdf = makePdfDocument();
-  const twoColWidths = [135, 128, 135, 128];
-  const labelValueRows = (pairs) => {
-    const rows = [];
-    for (let index = 0; index < pairs.length; index += 2) {
-      const left = pairs[index] || ["", ""];
-      const right = pairs[index + 1] || ["", ""];
-      rows.push([left[0], left[1], right[0], right[1]]);
-    }
-    return rows;
-  };
 
   pdf.text("Bybridge Job Agency System", pdf.margin, 42, { size: 18, bold: true });
   pdf.text("FDW Biodata Summary", pdf.margin, 62, { size: 11, color: "#17613e", bold: true });
@@ -1248,7 +1268,7 @@ function buildMaidProfilePdf(maid) {
   pdf.y += 34;
 
   pdf.heading("Personal Particulars");
-  pdf.table(["Field", "Value", "Field", "Value"], labelValueRows([
+  pdf.infoGrid([
     ["Name", maid.name],
     ["Reference No.", maid.refNo],
     ["Nationality", maid.nationality],
@@ -1265,24 +1285,24 @@ function buildMaidProfilePdf(maid) {
     ["Salary", maid.salary ? `S$${maid.salary}` : ""],
     ["Rest Day", maid.offDay],
     ["Languages", maid.languages]
-  ]), twoColWidths);
+  ]);
 
   pdf.heading("Passport and Work Permit Information");
-  pdf.table(["Field", "Value", "Field", "Value"], labelValueRows([
+  pdf.infoGrid([
     ["Passport No.", maid.passportNo],
     ["FIN", maid.fin],
     ["WP No.", maid.wpNo],
     ["Repatriation Airport", maid.repatriationAirport]
-  ]), twoColWidths);
+  ]);
 
   pdf.heading("Health, Food Handling and Restrictions");
-  pdf.table(["Field", "Value", "Field", "Value"], labelValueRows([
+  pdf.infoGrid([
     ["Allergies (if any)", maid.allergies],
     ["Physical disabilities", maid.physicalDisabilities || medicalRecordStatus(maid, "Physical disabilities")],
     ["Dietary restrictions", maid.dietaryRestrictions || medicalRecordStatus(maid, "Dietary restrictions")],
     ["Food handling preferences", maid.foodHandling],
     ["Medical History", editableMedicalHistory(maid).map((item) => `${item.item}: ${item.status}`).join("; ")]
-  ]), twoColWidths);
+  ]);
 
   pdf.heading("Method of Evaluation");
   {
@@ -1320,10 +1340,10 @@ function buildMaidProfilePdf(maid) {
   );
 
   pdf.heading("Interview Availability and Biodata Remarks");
-  pdf.table(["Field", "Value"], [
+  pdf.infoGrid([
     ["Interview Availability", displayValue(maid.interviewAvailability)],
     ["Biodata Remarks", maid.biodataRemarks || "-"]
-  ], [155, 395]);
+  ]);
 
   pdf.ensureSpace(120);
   pdf.heading("Signature Section");
