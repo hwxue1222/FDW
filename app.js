@@ -954,6 +954,7 @@ const previewOpen = $("#previewOpen");
 
 function withCacheBust(url) {
   if (!url) return url;
+  if (/^(blob:|data:)/i.test(String(url))) return url;
   const parts = String(url).split("#");
   const base = parts[0];
   const hash = parts.length > 1 ? parts.slice(1).join("#") : "";
@@ -966,7 +967,10 @@ function openPdfPreview(url, title) {
   if (!previewDialog || !previewFrame) return;
   const previewUrl = withCacheBust(url);
   if (previewTitle) previewTitle.textContent = title || uiLabel("Preview", "预览");
-  if (previewOpen) previewOpen.href = previewUrl || "#";
+  if (previewOpen) {
+    previewOpen.href = previewUrl || "#";
+    previewOpen.removeAttribute("download");
+  }
   previewFrame.src = previewUrl;
   previewDialog.showModal();
 }
@@ -974,6 +978,9 @@ function openPdfPreview(url, title) {
 function closePdfPreview() {
   if (!previewDialog || !previewFrame) return;
   previewDialog.close();
+  const previousUrl = previewFrame.dataset.objectUrl || "";
+  if (previousUrl) URL.revokeObjectURL(previousUrl);
+  previewFrame.dataset.objectUrl = "";
   previewFrame.src = "";
   if (previewOpen) previewOpen.href = "#";
 }
@@ -984,6 +991,9 @@ if (previewClose) {
 
 if (previewDialog) {
   previewDialog.addEventListener("close", () => {
+    const previousUrl = previewFrame?.dataset.objectUrl || "";
+    if (previousUrl) URL.revokeObjectURL(previousUrl);
+    if (previewFrame) previewFrame.dataset.objectUrl = "";
     if (previewFrame) previewFrame.src = "";
     if (previewOpen) previewOpen.href = "#";
   });
@@ -996,6 +1006,297 @@ if (recordDialog) {
   });
 }
 
+function pdfText(value) {
+  return displayValue(value).replace(/[^\x09\x0A\x0D\x20-\x7E]/g, " ");
+}
+
+function escapePdfString(value) {
+  return pdfText(value).replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)");
+}
+
+function wrapPdfText(value, width, fontSize = 9) {
+  const text = pdfText(value);
+  const maxChars = Math.max(8, Math.floor(width / (fontSize * 0.52)));
+  const lines = [];
+  text.split(/\n/).forEach((paragraph) => {
+    const words = paragraph.split(/\s+/).filter(Boolean);
+    let line = "";
+    words.forEach((word) => {
+      if (!line) {
+        line = word;
+        return;
+      }
+      if (`${line} ${word}`.length <= maxChars) {
+        line = `${line} ${word}`;
+      } else {
+        lines.push(line);
+        line = word;
+      }
+    });
+    lines.push(line || "-");
+  });
+  return lines.length ? lines : ["-"];
+}
+
+function makePdfDocument() {
+  const pageWidth = 595.28;
+  const pageHeight = 841.89;
+  const margin = 34;
+  const contentWidth = pageWidth - margin * 2;
+  const pages = [];
+  let commands = [];
+  let y = margin;
+
+  const write = (command) => commands.push(command);
+  const pdfY = (value) => pageHeight - value;
+  const color = (hex) => {
+    const clean = hex.replace("#", "");
+    const r = parseInt(clean.slice(0, 2), 16) / 255;
+    const g = parseInt(clean.slice(2, 4), 16) / 255;
+    const b = parseInt(clean.slice(4, 6), 16) / 255;
+    return `${r.toFixed(3)} ${g.toFixed(3)} ${b.toFixed(3)}`;
+  };
+  const addPage = () => {
+    if (commands.length) pages.push(commands.join("\n"));
+    commands = [];
+    y = margin;
+  };
+  const ensureSpace = (height) => {
+    if (y + height > pageHeight - margin) addPage();
+  };
+  const text = (value, x, top, options = {}) => {
+    const size = options.size || 9;
+    const font = options.bold ? "F2" : "F1";
+    const fill = color(options.color || "#1f2925");
+    write(`BT /${font} ${size} Tf ${fill} rg ${x.toFixed(2)} ${pdfY(top).toFixed(2)} Td (${escapePdfString(value)}) Tj ET`);
+  };
+  const line = (x1, y1, x2, y2, stroke = "#d8e2dd") => {
+    write(`${color(stroke)} RG ${x1.toFixed(2)} ${pdfY(y1).toFixed(2)} m ${x2.toFixed(2)} ${pdfY(y2).toFixed(2)} l S`);
+  };
+  const rect = (x, top, width, height, options = {}) => {
+    if (options.fill) {
+      write(`${color(options.fill)} rg ${x.toFixed(2)} ${(pdfY(top) - height).toFixed(2)} ${width.toFixed(2)} ${height.toFixed(2)} re f`);
+    }
+    if (options.stroke !== false) {
+      write(`${color(options.stroke || "#d8e2dd")} RG ${x.toFixed(2)} ${(pdfY(top) - height).toFixed(2)} ${width.toFixed(2)} ${height.toFixed(2)} re S`);
+    }
+  };
+  const heading = (title) => {
+    ensureSpace(32);
+    y += y === margin ? 0 : 10;
+    text(title, margin, y + 8, { size: 13, bold: true, color: "#17613e" });
+    y += 24;
+  };
+  const table = (headers, rows, widths) => {
+    const rowPadding = 8;
+    const headerHeight = 24;
+    ensureSpace(headerHeight + 12);
+    rect(margin, y, contentWidth, headerHeight, { fill: "#edf5f1", stroke: "#d8e2dd" });
+    let x = margin;
+    headers.forEach((header, index) => {
+      text(header, x + rowPadding, y + 15, { size: 8.5, bold: true, color: "#55655f" });
+      x += widths[index];
+    });
+    y += headerHeight;
+    rows.forEach((row) => {
+      const wrapped = row.map((cell, index) => wrapPdfText(cell, widths[index] - rowPadding * 2, 8.5));
+      const lineCount = Math.max(...wrapped.map((lines) => lines.length));
+      const rowHeight = Math.max(28, lineCount * 12 + 12);
+      ensureSpace(rowHeight + 4);
+      rect(margin, y, contentWidth, rowHeight, { fill: "#ffffff", stroke: "#dfe7e3" });
+      x = margin;
+      wrapped.forEach((lines, index) => {
+        lines.forEach((lineText, lineIndex) => {
+          text(lineText, x + rowPadding, y + 15 + lineIndex * 11, { size: 8.5, bold: index === 0 && headers.length === 2 });
+        });
+        x += widths[index];
+      });
+      y += rowHeight + 4;
+    });
+  };
+  const finish = () => {
+    pages.push(commands.join("\n"));
+    const objects = [];
+    const addObject = (body) => {
+      objects.push(body);
+      return objects.length;
+    };
+    const catalogId = addObject("<< /Type /Catalog /Pages 2 0 R >>");
+    const pagesId = addObject("");
+    const fontRegularId = addObject("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>");
+    const fontBoldId = addObject("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>");
+    const pageIds = [];
+    pages.forEach((content) => {
+      const contentId = addObject(`<< /Length ${content.length} >>\nstream\n${content}\nendstream`);
+      const pageId = addObject(`<< /Type /Page /Parent ${pagesId} 0 R /MediaBox [0 0 ${pageWidth} ${pageHeight}] /Resources << /Font << /F1 ${fontRegularId} 0 R /F2 ${fontBoldId} 0 R >> >> /Contents ${contentId} 0 R >>`);
+      pageIds.push(pageId);
+    });
+    objects[pagesId - 1] = `<< /Type /Pages /Kids [${pageIds.map((id) => `${id} 0 R`).join(" ")}] /Count ${pageIds.length} >>`;
+    let output = "%PDF-1.4\n";
+    const offsets = [0];
+    objects.forEach((body, index) => {
+      offsets.push(output.length);
+      output += `${index + 1} 0 obj\n${body}\nendobj\n`;
+    });
+    const xrefOffset = output.length;
+    output += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+    offsets.slice(1).forEach((offset) => {
+      output += `${String(offset).padStart(10, "0")} 00000 n \n`;
+    });
+    output += `trailer\n<< /Size ${objects.length + 1} /Root ${catalogId} 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
+    return new Blob([output], { type: "application/pdf" });
+  };
+
+  return { addPage, ensureSpace, text, line, rect, heading, table, finish, get y() { return y; }, set y(value) { y = value; }, margin, contentWidth, pageWidth, pageHeight };
+}
+
+function maidPdfFileName(maid) {
+  return `${String(maid.refNo || maid.name || "worker").replace(/[^a-z0-9-]+/gi, "_")}_biodata.pdf`;
+}
+
+function buildMaidProfilePdf(maid) {
+  const pdf = makePdfDocument();
+  const twoColWidths = [135, 128, 135, 128];
+  const labelValueRows = (pairs) => {
+    const rows = [];
+    for (let index = 0; index < pairs.length; index += 2) {
+      const left = pairs[index] || ["", ""];
+      const right = pairs[index + 1] || ["", ""];
+      rows.push([left[0], left[1], right[0], right[1]]);
+    }
+    return rows;
+  };
+
+  pdf.text("Bybridge Job Agency System", pdf.margin, 42, { size: 18, bold: true });
+  pdf.text("FDW Biodata Summary", pdf.margin, 62, { size: 11, color: "#17613e", bold: true });
+  pdf.text(`Generated: ${new Date().toISOString().slice(0, 10)}`, 430, 62, { size: 8.5, color: "#61706a" });
+  pdf.line(pdf.margin, 76, pdf.pageWidth - pdf.margin, 76, "#cddbd5");
+  pdf.y = 92;
+  pdf.text(maid.name || "-", pdf.margin, pdf.y, { size: 16, bold: true });
+  pdf.text(`${maid.refNo || "-"} | Domestic Worker | ${maid.nationality || "-"} | ${maid.age || "-"} years old`, pdf.margin, pdf.y + 17, { size: 9.5, color: "#55655f" });
+  pdf.y += 34;
+
+  pdf.heading("Personal Particulars");
+  pdf.table(["Field", "Value", "Field", "Value"], labelValueRows([
+    ["Name", maid.name],
+    ["Reference No.", maid.refNo],
+    ["Nationality", maid.nationality],
+    ["Date of Birth", maid.dateOfBirth],
+    ["Age", maid.age],
+    ["Religion", maid.religion],
+    ["Marital Status", maid.maritalStatus],
+    ["Education", maid.education],
+    ["Height / Weight", heightWeightValue(maid)],
+    ["Birth / Home City", maid.originCity],
+    ["Home Address", maid.homeAddress],
+    ["No. of Siblings", maid.siblings],
+    ["Worked Countries", displayValue(maid.workedCountries)],
+    ["Salary", maid.salary ? `S$${maid.salary}` : ""],
+    ["Rest Day", maid.offDay],
+    ["Languages", maid.languages]
+  ]), twoColWidths);
+
+  pdf.heading("Passport and Work Permit Information");
+  pdf.table(["Field", "Value", "Field", "Value"], labelValueRows([
+    ["Passport No.", maid.passportNo],
+    ["FIN", maid.fin],
+    ["WP No.", maid.wpNo],
+    ["Repatriation Airport", maid.repatriationAirport]
+  ]), twoColWidths);
+
+  pdf.heading("Health, Food Handling and Restrictions");
+  pdf.table(["Field", "Value", "Field", "Value"], labelValueRows([
+    ["Medical Status", maid.medicalStatus],
+    ["Food Handling", maid.foodHandling],
+    ["Allergies / Fears / Restrictions", maid.allergies],
+    ["Medical History", (maid.medicalHistory || []).map((item) => `${item.item}: ${item.status}`).join("; ")]
+  ]), twoColWidths);
+
+  pdf.heading("Scope of Work and Skills");
+  pdf.table(
+    ["Scope of Work", "Willing", "Experience", "Years", "Rating", "Remarks"],
+    (maid.skillAssessment || []).map((item) => [item.area, item.willingness, item.experience, item.years, item.rating, item.observation]),
+    [150, 50, 65, 45, 50, 190]
+  );
+
+  pdf.heading("Method of Evaluation");
+  pdf.table(["No.", "Method"], (maid.evaluationMethods || []).map((item, index) => [String(index + 1), item]), [45, 505]);
+
+  pdf.heading("Overseas Employment History");
+  pdf.table(
+    ["Period", "Country", "Employer", "Duties"],
+    (maid.employmentHistory || []).length
+      ? (maid.employmentHistory || []).map((item) => [[item.from, item.to].filter(Boolean).join(" - ") || "-", item.country, item.employer, item.duties])
+      : [["-", "-", "-", "No overseas employment history recorded."]],
+    [105, 90, 120, 235]
+  );
+
+  pdf.heading("MOM Singapore Records");
+  pdf.table(
+    ["Period", "Employer", "Industry", "Remarks"],
+    (maid.momHistory || []).length
+      ? (maid.momHistory || []).map((item) => [[item.startDate, item.endDate].filter(Boolean).join(" - ") || "-", item.employer, item.industry, item.remarks])
+      : [["-", "-", "-", "No MOM records recorded."]],
+    [105, 130, 105, 210]
+  );
+
+  pdf.heading("Interview Availability and Biodata Remarks");
+  pdf.table(["Field", "Value"], [
+    ["Interview Availability", displayValue(maid.interviewAvailability)],
+    ["Biodata Remarks", maid.biodataRemarks || "-"]
+  ], [155, 395]);
+
+  pdf.ensureSpace(120);
+  pdf.heading("Signature Section");
+  const signatureTop = pdf.y + 14;
+  const signatureWidth = (pdf.contentWidth - 28) / 3;
+  [
+    ["FDW", maid.name || ""],
+    ["Employer", ""],
+    ["EA Personnel Name / Registration No.", ""]
+  ].forEach((item, index) => {
+    const x = pdf.margin + index * (signatureWidth + 14);
+    pdf.rect(x, signatureTop, signatureWidth, 76, { fill: "#ffffff", stroke: "#cddbd5" });
+    pdf.text(item[0], x + 8, signatureTop + 16, { size: 8.5, bold: true, color: "#17613e" });
+    pdf.line(x + 8, signatureTop + 48, x + signatureWidth - 8, signatureTop + 48, "#7b8883");
+    pdf.text("Signature", x + 8, signatureTop + 61, { size: 7.5, color: "#61706a" });
+    if (item[1]) pdf.text(item[1], x + 8, signatureTop + 73, { size: 7.5, color: "#61706a" });
+  });
+  pdf.y = signatureTop + 92;
+  pdf.text("EA License No. 15C7627 | Bybridge Consultancy Pte Ltd", pdf.margin, pdf.y, { size: 8, color: "#61706a" });
+
+  return pdf.finish();
+}
+
+function previewMaidProfilePdf(maidId) {
+  const maid = maidById(maidId);
+  if (!maid || !previewDialog || !previewFrame) return;
+  const previousUrl = previewFrame.dataset.objectUrl || "";
+  if (previousUrl) URL.revokeObjectURL(previousUrl);
+  const url = URL.createObjectURL(buildMaidProfilePdf(maid));
+  previewFrame.dataset.objectUrl = url;
+  if (previewTitle) previewTitle.textContent = `${maid.name} Biodata PDF`;
+  if (previewOpen) {
+    previewOpen.href = url;
+    previewOpen.download = maidPdfFileName(maid);
+  }
+  previewFrame.src = url;
+  previewDialog.showModal();
+}
+
+function downloadMaidProfilePdf(maidId) {
+  const maid = maidById(maidId);
+  if (!maid) return;
+  const url = URL.createObjectURL(buildMaidProfilePdf(maid));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = maidPdfFileName(maid);
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 document.addEventListener("click", (event) => {
   const target = event.target.closest(".download-preview");
   if (!target) return;
@@ -1006,6 +1307,18 @@ document.addEventListener("click", (event) => {
 });
 
 document.addEventListener("click", (event) => {
+  const previewPdfTarget = event.target.closest("[data-preview-maid-pdf]");
+  if (previewPdfTarget) {
+    previewMaidProfilePdf(previewPdfTarget.dataset.previewMaidPdf);
+    return;
+  }
+
+  const downloadPdfTarget = event.target.closest("[data-download-maid-pdf]");
+  if (downloadPdfTarget) {
+    downloadMaidProfilePdf(downloadPdfTarget.dataset.downloadMaidPdf);
+    return;
+  }
+
   const editSectionTarget = event.target.closest("[data-edit-maid-section]");
   if (editSectionTarget) {
     openMaidProfileSectionDialog(editSectionTarget.dataset.maidId || activeMaidDetailId, editSectionTarget.dataset.editMaidSection);
@@ -1284,6 +1597,138 @@ function openMaidProfileSectionDialog(maidId, section) {
       ],
       (data) => {
         maid.employmentHistory = parseEmploymentLines(data.employmentHistory);
+      }
+    );
+    return;
+  }
+
+  if (section === "personal") {
+    openDialog(
+      uiLabel("Edit Personal Particulars", "编辑个人资料"),
+      [
+        { label: "Name", name: "name", value: maid.name || "" },
+        { label: "Reference No.", name: "refNo", value: maid.refNo || "" },
+        { label: "Nationality", name: "nationality", value: maid.nationality || "" },
+        { label: "Date of Birth", name: "dateOfBirth", value: maid.dateOfBirth || "" },
+        { label: "Age", name: "age", value: maid.age || "" },
+        { label: "Religion", name: "religion", value: maid.religion || "" },
+        { label: "Marital Status", name: "maritalStatus", value: maid.maritalStatus || "" },
+        { label: "Education", name: "education", value: maid.education || "" },
+        { label: "Height cm", name: "height", value: maid.height || "" },
+        { label: "Weight kg", name: "weight", value: maid.weight || "" },
+        { label: "Birth / Home City", name: "originCity", value: maid.originCity || "" },
+        { label: "Home Address", name: "homeAddress", value: maid.homeAddress || "", full: true },
+        { label: "No. of Siblings", name: "siblings", value: maid.siblings || "" },
+        { label: "Worked Countries, comma-separated", name: "workedCountries", value: displayValue(maid.workedCountries, ""), full: true },
+        { label: "Salary", name: "salary", value: maid.salary || "" },
+        { label: "Rest Day", name: "offDay", value: maid.offDay || "" },
+        { label: "Languages", name: "languages", value: maid.languages || "", full: true }
+      ],
+      (data) => {
+        Object.assign(maid, {
+          name: data.name,
+          refNo: data.refNo,
+          nationality: data.nationality,
+          dateOfBirth: data.dateOfBirth,
+          age: Number(data.age || 0),
+          religion: data.religion,
+          maritalStatus: data.maritalStatus,
+          education: data.education,
+          height: Number(data.height || 0),
+          weight: Number(data.weight || 0),
+          originCity: data.originCity,
+          homeAddress: data.homeAddress,
+          siblings: data.siblings,
+          workedCountries: splitList(data.workedCountries),
+          salary: Number(data.salary || 0),
+          offDay: data.offDay,
+          languages: data.languages
+        });
+      }
+    );
+    return;
+  }
+
+  if (section === "passport") {
+    openDialog(
+      uiLabel("Edit Passport and Work Permit Information", "编辑证件与准证信息"),
+      [
+        { label: "Passport No.", name: "passportNo", value: maid.passportNo || "" },
+        { label: "FIN", name: "fin", value: maid.fin || "" },
+        { label: "WP No.", name: "wpNo", value: maid.wpNo || "" },
+        { label: "Repatriation Airport", name: "repatriationAirport", value: maid.repatriationAirport || "", full: true }
+      ],
+      (data) => {
+        Object.assign(maid, data);
+      }
+    );
+    return;
+  }
+
+  if (section === "health") {
+    openDialog(
+      uiLabel("Edit Health, Food Handling and Restrictions", "编辑健康、饮食与限制"),
+      [
+        { label: "Medical Status", name: "medicalStatus", value: maid.medicalStatus || "", full: true },
+        { label: "Food Handling", name: "foodHandling", value: maid.foodHandling || "", full: true },
+        { label: "Allergies / Fears / Restrictions", name: "allergies", value: maid.allergies || "", type: "textarea", full: true, required: false },
+        {
+          label: "Medical History, one per line: Item: Status",
+          name: "medicalHistory",
+          type: "textarea",
+          full: true,
+          required: false,
+          value: (maid.medicalHistory || []).map((item) => `${item.item || ""}: ${item.status || ""}`).join("\n")
+        }
+      ],
+      (data) => {
+        maid.medicalStatus = data.medicalStatus;
+        maid.foodHandling = data.foodHandling;
+        maid.allergies = data.allergies;
+        maid.medicalHistory = parsePairLines(data.medicalHistory);
+      }
+    );
+    return;
+  }
+
+  if (section === "skills") {
+    openDialog(
+      uiLabel("Edit Scope of Work and Skills", "编辑工作范围与能力"),
+      [
+        {
+          label: "Duties / skill tags, comma-separated",
+          name: "duties",
+          value: displayValue(maid.duties || maid.skills, ""),
+          full: true,
+          required: false
+        },
+        {
+          label: "Method of evaluation, one per line",
+          name: "evaluationMethods",
+          type: "textarea",
+          full: true,
+          required: false,
+          value: formatListLines(maid.evaluationMethods)
+        },
+        {
+          label: "Skills of FDW, one per line: Scope | Willing | Exp | Years | Rating | Remarks",
+          name: "skillAssessment",
+          type: "textarea",
+          full: true,
+          required: false,
+          value: (maid.skillAssessment || [])
+            .map((item) => [item.area, item.willingness, item.experience, item.years, item.rating, item.observation].map((value) => value || "").join(" | "))
+            .join("\n")
+        }
+      ],
+      (data) => {
+        maid.duties = splitList(data.duties);
+        maid.skills = splitList(data.duties);
+        maid.evaluationMethods = formatListLines(data.evaluationMethods)
+          .split("\n")
+          .map((item) => item.trim())
+          .filter(Boolean);
+        maid.skillAssessment = parseSkillLines(data.skillAssessment);
       }
     );
     return;
@@ -2220,7 +2665,11 @@ function renderMaidDetail(maid, options = {}) {
     <article class="detail-card maid-detail-card">
       <div class="detail-toolbar">
         <button class="mini-btn" type="button" ${isFrontDetail ? "data-back-front-list" : "data-back-maid-list"}>${isFrontDetail ? uiLabel("Back to Worker List", "返回人员列表") : uiLabel("Back to Personnel List", "返回人员列表")}</button>
-        <span class="tag ${maid.status === "面试中" ? "amber" : ""}">${statusLabel(maid.status)}</span>
+        <div class="detail-toolbar-actions">
+          ${!isFrontDetail ? `<button class="mini-btn" type="button" data-preview-maid-pdf="${maid.id}">${uiLabel("Preview PDF", "预览 PDF")}</button>` : ""}
+          ${!isFrontDetail ? `<button class="mini-btn" type="button" data-download-maid-pdf="${maid.id}">${uiLabel("Download PDF", "下载 PDF")}</button>` : ""}
+          <span class="tag ${maid.status === "面试中" ? "amber" : ""}">${statusLabel(maid.status)}</span>
+        </div>
       </div>
       <div class="detail-head">
         <div class="profile-title">
@@ -2237,7 +2686,10 @@ function renderMaidDetail(maid, options = {}) {
       </div>
 
       <section class="detail-section">
-        <h3>${uiLabel("Personal Particulars", "个人资料")}</h3>
+        <div class="detail-section-title">
+          <h3>${uiLabel("Personal Particulars", "个人资料")}</h3>
+          ${canEditProfileSections ? `<button class="mini-btn" type="button" data-edit-maid-section="personal" data-maid-id="${maid.id}">${uiLabel("Edit", "编辑")}</button>` : ""}
+        </div>
         <div class="profile-grid maid-fixed-grid">
           ${detailFields([
             [uiLabel("Name", "姓名"), maid.name],
@@ -2261,7 +2713,10 @@ function renderMaidDetail(maid, options = {}) {
       </section>
 
       <section class="detail-section">
-        <h3>${uiLabel("Passport and Work Permit Information", "证件与准证信息")}</h3>
+        <div class="detail-section-title">
+          <h3>${uiLabel("Passport and Work Permit Information", "证件与准证信息")}</h3>
+          ${canEditProfileSections ? `<button class="mini-btn" type="button" data-edit-maid-section="passport" data-maid-id="${maid.id}">${uiLabel("Edit", "编辑")}</button>` : ""}
+        </div>
         <div class="profile-grid maid-fixed-grid">
           ${detailFields([
             [uiLabel("Passport No.", "护照号码"), maid.passportNo],
@@ -2273,7 +2728,10 @@ function renderMaidDetail(maid, options = {}) {
       </section>
 
       <section class="detail-section">
-        <h3>${uiLabel("Health, Food Handling and Restrictions", "健康、饮食与限制")}</h3>
+        <div class="detail-section-title">
+          <h3>${uiLabel("Health, Food Handling and Restrictions", "健康、饮食与限制")}</h3>
+          ${canEditProfileSections ? `<button class="mini-btn" type="button" data-edit-maid-section="health" data-maid-id="${maid.id}">${uiLabel("Edit", "编辑")}</button>` : ""}
+        </div>
         <div class="profile-grid maid-fixed-grid">
           ${detailFields([
             [uiLabel("Medical Status", "医疗状态"), maid.medicalStatus],
@@ -2285,7 +2743,10 @@ function renderMaidDetail(maid, options = {}) {
       </section>
 
       <section class="detail-section">
-        <h3>${uiLabel("Scope of Work and Skills", "工作范围与能力")}</h3>
+        <div class="detail-section-title">
+          <h3>${uiLabel("Scope of Work and Skills", "工作范围与能力")}</h3>
+          ${canEditProfileSections ? `<button class="mini-btn" type="button" data-edit-maid-section="skills" data-maid-id="${maid.id}">${uiLabel("Edit", "编辑")}</button>` : ""}
+        </div>
         <div class="skills">${(maid.duties || maid.skills || []).map((item) => `<span class="tag blue">${item}</span>`).join("")}</div>
         <div class="evaluation-methods">
           <div class="row-sub">${uiLabel("Method of evaluation of skills (multiple choice)", "Method of evaluation of skills（多选）")}</div>
