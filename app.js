@@ -946,10 +946,11 @@ function mergeList(sharedItems = [], localItems = [], fields) {
   return [...merged.values()];
 }
 
-function mergeSharedState(sharedRaw, localRaw) {
+function mergeSharedState(sharedRaw, localRaw, options = {}) {
   const local = normalizeState(localRaw ? cloneState(localRaw) : null);
   if (!sharedRaw) return local;
   const shared = normalizeState(cloneState(sharedRaw));
+  if (!options.includeLocalOnly) return shared;
   return normalizeState({
     ...local,
     ...shared,
@@ -982,14 +983,14 @@ async function hydrateSharedState() {
     if (!response.ok) return;
     const data = await response.json();
     const localRaw = parseStoredJson("maidAgencyState");
-    const mergedState = mergeSharedState(data.state, localRaw);
+    const mergedState = mergeSharedState(data.state, localRaw, { includeLocalOnly: !data.state });
     Object.keys(state).forEach((key) => delete state[key]);
     Object.assign(state, mergedState);
     state.maids = state.maids.map((maid) => normalizeUppercaseText(maid));
     state.clients = state.clients.map((client) => normalizeUppercaseText(client));
     saveLocalState();
     renderAll();
-    if (currentSession?.token) {
+    if (currentSession?.token && !data.state) {
       await persistSharedState();
     }
   } catch (error) {
