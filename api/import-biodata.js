@@ -160,6 +160,72 @@ function cleanValue(value) {
     .trim();
 }
 
+function jpegSize(buffer) {
+  let offset = 2;
+  while (offset < buffer.length) {
+    if (buffer[offset] !== 0xff) {
+      offset += 1;
+      continue;
+    }
+    const marker = buffer[offset + 1];
+    if (offset + 4 >= buffer.length) break;
+    const length = buffer.readUInt16BE(offset + 2);
+    if ([0xc0, 0xc1, 0xc2, 0xc3].includes(marker)) {
+      return {
+        width: buffer.readUInt16BE(offset + 7),
+        height: buffer.readUInt16BE(offset + 5)
+      };
+    }
+    offset += 2 + length;
+  }
+  return { width: 0, height: 0 };
+}
+
+function extractJpegImagesFromPdf(buffer) {
+  const images = [];
+  const marker = Buffer.from("/DCTDecode");
+  let searchFrom = 0;
+  while (searchFrom < buffer.length) {
+    const filterIndex = buffer.indexOf(marker, searchFrom);
+    if (filterIndex < 0) break;
+    const streamStart = buffer.indexOf(Buffer.from("stream"), filterIndex);
+    const streamEnd = buffer.indexOf(Buffer.from("endstream"), streamStart);
+    if (streamStart < 0 || streamEnd < 0) {
+      searchFrom = filterIndex + marker.length;
+      continue;
+    }
+    let start = streamStart + "stream".length;
+    if (buffer[start] === 0x0d && buffer[start + 1] === 0x0a) start += 2;
+    else if (buffer[start] === 0x0a) start += 1;
+    let image = buffer.slice(start, streamEnd);
+    const soi = image.indexOf(Buffer.from([0xff, 0xd8]));
+    const eoi = image.indexOf(Buffer.from([0xff, 0xd9]));
+    if (soi >= 0 && eoi > soi) {
+      image = image.slice(soi, eoi + 2);
+      const size = jpegSize(image);
+      images.push({ bytes: image, ...size });
+    }
+    searchFrom = streamEnd + "endstream".length;
+  }
+  return images;
+}
+
+function extractProfilePhotoDataUrl(buffer) {
+  const candidates = extractJpegImagesFromPdf(buffer)
+    .filter((image) => image.width >= 80 && image.height >= 80 && image.bytes.length >= 5000)
+    .map((image) => {
+      const ratio = image.width / image.height;
+      const portraitScore = ratio > 0.55 && ratio < 1.25 ? 1000000 : 0;
+      return {
+        ...image,
+        score: portraitScore + image.width * image.height
+      };
+    })
+    .sort((a, b) => b.score - a.score);
+  const photo = candidates[0];
+  return photo ? `data:image/jpeg;base64,${photo.bytes.toString("base64")}` : "";
+}
+
 function firstMatch(text, patterns) {
   for (const pattern of patterns) {
     const match = text.match(pattern);
@@ -295,6 +361,8 @@ function extractSalary(text, refNo) {
 }
 
 function extractHeight(text) {
+  const pair = text.match(/\b(\d{3})\s*cm\s*(?:\/|\s)\s*(\d{2,3})\s*kg\b/i);
+  if (pair) return Number(pair[1]);
   const heightLine = valueAfter(text, ["Height / Weight", "Height/Weight", "Height"]);
   const fromLine = heightLine.match(/\b(\d{3})\s*cm\b/i)?.[1];
   if (fromLine) return Number(fromLine);
@@ -302,6 +370,8 @@ function extractHeight(text) {
 }
 
 function extractWeight(text) {
+  const pair = text.match(/\b(\d{3})\s*cm\s*(?:\/|\s)\s*(\d{2,3})\s*kg\b/i);
+  if (pair) return Number(pair[2]);
   const weightLine = valueAfter(text, ["Height / Weight", "Height/Weight", "Weight"]);
   const fromLine = weightLine.match(/\b(\d{2,3})\s*kg\b/i)?.[1];
   if (fromLine) return Number(fromLine);
@@ -359,6 +429,7 @@ function parseSkillRowFromLine(line) {
 function cleanSkillRemark(value) {
   return cleanValue(value)
     .replace(/^[.:;,\s-]+/, "")
+    .replace(/_+/g, " ")
     .replace(/\b(Number of children|Food handling preferences|Remarks?|Please specify)\b\s*[:：]?/gi, " ")
     .replace(/\b(Yes|No)\b/gi, " ")
     .replace(/\b\d{1,2}\b/g, " ")
@@ -379,6 +450,7 @@ function extractSkillRemark(line) {
 
 function skillSnippetForLine(lines, index, allRowPatterns) {
   const snippet = [lines[index]];
+  let previousWasSpecify = /please specify\s*[:：]?\s*$/i.test(lines[index]);
   for (let offset = 1; offset <= 3; offset += 1) {
     const next = lines[index + offset];
     if (!next) break;
@@ -386,6 +458,12 @@ function skillSnippetForLine(lines, index, allRowPatterns) {
     if (startsNextScope && !/please specify|number of children|food handling preferences|remarks?/i.test(next)) break;
     if (/please specify|number of children|food handling preferences|remarks?/i.test(next)) {
       snippet.push(next);
+      previousWasSpecify = /please specify\s*[:：]?\s*$/i.test(next);
+      continue;
+    }
+    if (previousWasSpecify) {
+      snippet.push(next);
+      previousWasSpecify = false;
       continue;
     }
     if (offset === 1 && !/\b(Yes|No)\b/i.test(next)) snippet.push(next);
@@ -438,7 +516,7 @@ function extractEmploymentHistory(text, workedCountries) {
     }));
 }
 
-function extractMaid(text) {
+function extractMaid(text, fileBuffer) {
   const normalized = compactText(text);
   const name = extractName(normalized) || "Imported Maid";
   const refNo = extractReferenceNo(normalized) || `PDF-${Date.now().toString().slice(-6)}`;
@@ -488,7 +566,7 @@ function extractMaid(text) {
     skillAssessment,
     employmentHistory,
     momHistory: [],
-    photoUrl: "",
+    photoUrl: extractProfilePhotoDataUrl(fileBuffer),
     biodataRemarks: "Auto-created from uploaded biodata PDF. Please review and confirm all extracted fields.",
     status: "可预约"
   };
@@ -504,7 +582,7 @@ module.exports = async function handler(req, res) {
   try {
     const file = await readUploadedPdf(req);
     const parsed = await pdfParse(file);
-    const maid = extractMaid(parsed.text || "");
+    const maid = extractMaid(parsed.text || "", file);
     return json(res, 200, {
       maid,
       extractedTextLength: (parsed.text || "").length
