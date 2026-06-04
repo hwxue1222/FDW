@@ -728,7 +728,7 @@ let currentSession = parseStoredJson("bybridgeAdminSession");
 let activeViewId = ["front", "admin"].includes(localStorage.getItem("bybridgeActiveView")) ? localStorage.getItem("bybridgeActiveView") : "front";
 let activeAdminTabId = localStorage.getItem("bybridgeAdminTab") || "maids";
 let adminSidebarCollapsed = localStorage.getItem("bybridgeAdminSidebar") === "collapsed";
-let adminCategoryCollapsed = parseStoredJson("bybridgeAdminCategoryCollapsed") || {};
+let adminCategoryCollapsed = parseStoredJson("bybridgeAdminCategoryCollapsed") || Object.fromEntries(Object.keys(categoryMeta).map((key) => [key, true]));
 let adminAccountsCache = [];
 let remoteSaveTimer = null;
 let isHydratingSharedState = false;
