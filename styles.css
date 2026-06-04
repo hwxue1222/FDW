@@ -386,8 +386,10 @@ textarea {
 
 .worker-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 18px;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 320px));
+  gap: 16px;
+  align-items: start;
+  justify-content: start;
 }
 
 .front-footer {
@@ -550,6 +552,8 @@ textarea {
 }
 
 .maid-card {
+  width: 100%;
+  max-width: 320px;
   overflow: hidden;
   box-shadow: var(--shadow);
 }
@@ -558,7 +562,7 @@ textarea {
   display: grid;
   place-items: center;
   width: 100%;
-  aspect-ratio: 4 / 3;
+  aspect-ratio: 5 / 3.4;
   color: var(--white);
   font-size: 46px;
   font-weight: 800;
@@ -576,7 +580,7 @@ textarea {
 }
 
 .maid-body {
-  padding: 16px;
+  padding: 14px;
 }
 
 .maid-title {
@@ -584,12 +588,12 @@ textarea {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 10px;
+  margin-bottom: 9px;
 }
 
 .maid-title h3,
 .maid-name-link {
-  font-size: 19px;
+  font-size: 17px;
   font-weight: 800;
   line-height: 1.15;
 }
@@ -603,7 +607,7 @@ textarea {
 }
 
 .card-section-title {
-  margin: 14px 0 0;
+  margin: 12px 0 0;
   color: var(--green-dark);
   font-size: 13px;
   font-weight: 800;
@@ -641,8 +645,8 @@ textarea {
 .info-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 9px 12px;
-  margin: 10px 0 14px;
+  gap: 8px 12px;
+  margin: 9px 0 12px;
 }
 
 .info-grid span {
@@ -1926,10 +1930,17 @@ menu {
   .admin-layout,
   .admin-layout.sidebar-collapsed,
   .two-column,
-  .worker-grid,
   .metric-grid,
   .sign-controls {
     grid-template-columns: 1fr;
+  }
+
+  .worker-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .maid-card {
+    max-width: none;
   }
 
   .filter-panel,
