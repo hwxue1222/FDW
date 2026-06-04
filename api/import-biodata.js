@@ -78,6 +78,7 @@ const FIELD_LABELS = [
   "Marital Status",
   "Marital",
   "Education",
+  "Educational level",
   "Highest Qualification",
   "Height",
   "Weight",
@@ -169,6 +170,36 @@ function firstMatch(text, patterns) {
 
 function normalizeDate(value) {
   const raw = String(value || "").trim();
+  const named = raw.match(/\b(\d{1,2})\s+([A-Za-z]{3,9})\s+(\d{4})\b/);
+  if (named) {
+    const months = {
+      jan: "01",
+      january: "01",
+      feb: "02",
+      february: "02",
+      mar: "03",
+      march: "03",
+      apr: "04",
+      april: "04",
+      may: "05",
+      jun: "06",
+      june: "06",
+      jul: "07",
+      july: "07",
+      aug: "08",
+      august: "08",
+      sep: "09",
+      september: "09",
+      oct: "10",
+      october: "10",
+      nov: "11",
+      november: "11",
+      dec: "12",
+      december: "12"
+    };
+    const month = months[named[2].toLowerCase()];
+    if (month) return `${named[3]}-${month}-${named[1].padStart(2, "0")}`;
+  }
   const dmy = raw.match(/\b(\d{1,2})[./-](\d{1,2})[./-](\d{2,4})\b/);
   if (dmy) {
     const year = dmy[3].length === 2 ? `19${dmy[3]}` : dmy[3];
@@ -242,6 +273,45 @@ function extractNumber(text, labels, patterns = []) {
   if (fromDirect) return Number(fromDirect);
   const match = firstMatch(text, patterns);
   return match ? Number(match) : 0;
+}
+
+function extractReferenceNo(text) {
+  const direct = valueAfter(text, ["Reference No.", "Reference No", "Ref No.", "Ref No", "Biodata No.", "Code"]);
+  const directRef = direct.match(/\b[A-Z]{2,4}\d{3,6}[A-Z]{1,3}\b/i)?.[0];
+  if (directRef) return directRef.toUpperCase();
+  return firstMatch(text, [/\b([A-Z]{2,4}\d{3,6}[A-Z]{1,3})\b/]).toUpperCase();
+}
+
+function extractSalary(text, refNo) {
+  if (refNo) {
+    const index = text.indexOf(refNo);
+    if (index >= 0) {
+      const nearby = text.slice(index, index + 120);
+      const nearNumber = nearby.match(/\b(5\d{2}|6\d{2}|7\d{2}|8\d{2}|9\d{2}|1\d{3})\b/);
+      if (nearNumber) return Number(nearNumber[1]);
+    }
+  }
+  return extractNumber(text, ["Salary", "Expected Salary"], [/S\$\s*([0-9,]+)/i, /\$\s*([0-9,]+)/i]);
+}
+
+function extractHeight(text) {
+  const heightLine = valueAfter(text, ["Height / Weight", "Height/Weight", "Height"]);
+  const fromLine = heightLine.match(/\b(\d{3})\s*cm\b/i)?.[1];
+  if (fromLine) return Number(fromLine);
+  return extractNumber(text, [], [/\b(\d{3})\s*cm\b/i]);
+}
+
+function extractWeight(text) {
+  const weightLine = valueAfter(text, ["Height / Weight", "Height/Weight", "Weight"]);
+  const fromLine = weightLine.match(/\b(\d{2,3})\s*kg\b/i)?.[1];
+  if (fromLine) return Number(fromLine);
+  return extractNumber(text, [], [/\b(\d{2,3})\s*kg\b/i]);
+}
+
+function cleanEducation(value) {
+  return cleanValue(value)
+    .replace(/^(?:educational?\s*)?(?:al\s*)?level\s*[:：-]?\s*/i, "")
+    .trim();
 }
 
 function extractSkills(text) {
@@ -351,6 +421,11 @@ function extractSkillAssessment(text, skills) {
     });
 }
 
+function extractLanguagesFromSkillAssessment(skillAssessment) {
+  const languageRow = skillAssessment.find((item) => item.area === "Language abilities");
+  return languageRow?.observation || "";
+}
+
 function extractEmploymentHistory(text, workedCountries) {
   return workedCountries
     .filter((country) => !["Indonesia", "Philippines"].includes(country))
@@ -366,31 +441,34 @@ function extractEmploymentHistory(text, workedCountries) {
 function extractMaid(text) {
   const normalized = compactText(text);
   const name = extractName(normalized) || "Imported Maid";
+  const refNo = extractReferenceNo(normalized) || `PDF-${Date.now().toString().slice(-6)}`;
   const dateOfBirth = normalizeDate(valueAfter(normalized, ["Date of Birth", "DOB", "Birth Date"]));
   const age = extractNumber(normalized, ["Age"], [/\bAge\s*(?:[:：-])?\s*(\d{2})\b/i]) || ageFromBirthDate(dateOfBirth);
-  const salary = extractNumber(normalized, ["Salary", "Expected Salary"], [/S\$\s*([0-9,]+)/i, /\$\s*([0-9,]+)/i]);
-  const height = extractNumber(normalized, ["Height"], [/(\d{3})\s*cm/i]);
-  const weight = extractNumber(normalized, ["Weight"], [/(\d{2,3})\s*kg/i]);
+  const salary = extractSalary(normalized, refNo);
+  const height = extractHeight(normalized);
+  const weight = extractWeight(normalized);
   const skills = extractSkills(normalized);
   const workedCountries = extractCountries(normalized);
   const employmentHistory = extractEmploymentHistory(normalized, workedCountries);
+  const skillAssessment = extractSkillAssessment(normalized, skills);
+  const languagesFromSkills = extractLanguagesFromSkillAssessment(skillAssessment);
 
   return {
     id: `m${Date.now()}`,
-    refNo: valueAfter(normalized, ["Reference No.", "Reference No", "Ref No.", "Ref No", "Biodata No.", "Code"]) || `PDF-${Date.now().toString().slice(-6)}`,
+    refNo,
     name,
     nationality: extractNationality(normalized),
     age,
     salary,
     experience: extractNumber(normalized, ["Experience", "Years of Experience"], [/(\d{1,2})\s*(?:years|yrs)\s*(?:of)?\s*experience/i]) || employmentHistory.length,
-    languages: valueAfter(normalized, ["Languages", "Language", "Spoken Language"]) || skills.filter((skill) => ["Mandarin", "English"].includes(skill)).join(" / ") || "To be filled",
+    languages: languagesFromSkills || valueAfter(normalized, ["Languages", "Language", "Spoken Language"]) || skills.filter((skill) => ["Mandarin", "English"].includes(skill)).join(" / ") || "To be filled",
     dateOfBirth,
     passportNo: valueAfter(normalized, ["Passport No.", "Passport No", "Passport Number"]),
     fin: valueAfter(normalized, ["FIN"]),
     wpNo: valueAfter(normalized, ["WP No.", "WP No", "Work Permit No.", "Work Permit Number"]),
     religion: valueAfter(normalized, ["Religion"]),
     maritalStatus: valueAfter(normalized, ["Marital Status"]) || valueAfter(normalized, ["Marital"]),
-    education: valueAfter(normalized, ["Education", "Highest Qualification"]),
+    education: cleanEducation(valueAfter(normalized, ["Educational level", "Education", "Highest Qualification"])),
     height,
     weight,
     originCity: valueAfter(normalized, ["Place of Birth", "Birth Place", "Home Town", "Home City"]),
@@ -407,7 +485,7 @@ function extractMaid(text) {
     interviewAvailability: [],
     skills,
     duties: skills,
-    skillAssessment: extractSkillAssessment(normalized, skills),
+    skillAssessment,
     employmentHistory,
     momHistory: [],
     photoUrl: "",
