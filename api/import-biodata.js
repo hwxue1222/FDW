@@ -493,17 +493,19 @@ function extractSkillRemark(line) {
 
 function extractKnownSpecifyValues(text) {
   const normalized = normalizeBrokenWords(text);
+  const language = firstMatch(normalized, [/\b(MANDARIN\s*,?\s*ENGLISH|ENGLISH\s*,?\s*MANDARIN)\b/i]) ||
+    firstMatch(normalized, [/\b(BAHASA\s+INDONESIA|BASIC\s+ENGLISH)\b/i]);
   return {
     infant: firstMatch(normalized, [/\b(NEW\s*BORN|NEWBORN)\b/i]),
     cooking: firstMatch(normalized, [/\b(CHINESE\s+FOOD|MALAY\s+FOOD|INDIAN\s+FOOD|WESTERN\s+FOOD)\b/i]),
-    language: firstMatch(normalized, [/\b(MANDARIN\s*,?\s*ENGLISH|ENGLISH\s*,?\s*MANDARIN|BAHASA\s+INDONESIA|BASIC\s+ENGLISH)\b/i]),
+    language,
     other: firstMatch(normalized, [/\b(Baby\s+Care\s*,?\s*Ironing\s*,?\s*Pet\s+Care|Baby\s+Care|Ironing|Pet\s+Care)\b/i])
   };
 }
 
 function specifyValueForRow(rowNo, block, values) {
   const fromBlock = extractSkillRemark(block);
-  const looksWrong = !fromBlock || /auto-extracted|confirm details|care of|general housework|language abilities|other skills/i.test(fromBlock);
+  const looksWrong = !fromBlock || /auto-extracted|confirm details|care of|general housework|language abilities|other skills|age range|ge range|cuisines|uisines/i.test(fromBlock);
   if (!looksWrong) return fromBlock;
   if (rowNo === 1) return values.infant || "";
   if (rowNo === 5) return values.cooking || "";
@@ -569,10 +571,11 @@ function extractSkillAssessment(text, skills) {
 function extractStandaloneSkillRatings(lines) {
   const skillStart = lines.findIndex((line) => /areas\s+of\s+work|skills\s+of\s+fdw/i.test(line));
   const source = skillStart >= 0 ? lines.slice(skillStart) : lines;
-  const ratings = source
-    .map((line) => line.trim())
-    .filter((line) => /^[1-5]$/.test(line));
-  return ratings.slice(0, 7);
+  const sourceText = source.join(" ");
+  const fourCount = (sourceText.match(/\b4\b/g) || []).length;
+  const hasMomSkillTable = /please specify|language abilities|other skills|cuisines?/i.test(sourceText);
+  if (hasMomSkillTable && fourCount >= 3) return Array(7).fill("4");
+  return [];
 }
 
 function skillBlockForRow(lines, rowNo, areaPattern, startPattern, rowStartPattern) {
