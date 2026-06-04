@@ -2724,20 +2724,6 @@ function renderAdminCategoryTabs() {
     { id: "documents", label: uiLabel("Signed Documents", "签署文件"), short: "S" },
     { id: "downloads", label: uiLabel("Form Downloads", "表格下载"), short: "F" }
   ];
-  const accountModule = canManageAccounts()
-    ? `
-      <section class="admin-category-group account-group">
-        <div class="admin-category-heading">
-          <span data-short="A">${uiLabel("Administration", "系统管理")}</span>
-        </div>
-        <div class="admin-module-list">
-          <button class="${document.querySelector(".admin-tab.active-admin-tab")?.id === "users" ? "active" : ""}" type="button" data-admin-tab-only="users" data-short="A" title="${uiLabel("Account Management", "账号管理")}">
-            ${uiLabel("Account Management", "账号管理")}
-          </button>
-        </div>
-      </section>
-    `
-    : "";
   const activeTab = activeAdminTabId || document.querySelector(".admin-tab.active-admin-tab")?.id || "maids";
   $("#adminCategoryTabs").innerHTML = Object.keys(categoryMeta)
     .map((key) => {
@@ -2763,7 +2749,7 @@ function renderAdminCategoryTabs() {
         </section>
       `;
     })
-    .join("") + accountModule;
+    .join("");
   const title = localized(categoryMeta[activeAdminCategory].title);
   $("#personnelTitle").textContent = `${title} · ${uiLabel("Personnel Management", "人员管理")}`;
   $("#clientTitle").textContent = `${title} · ${uiLabel("Client Management", "客户管理")}`;
