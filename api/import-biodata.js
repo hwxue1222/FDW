@@ -275,11 +275,7 @@ function parseSkillRowFromLine(line) {
   const numbers = line.match(/\b\d{1,2}\b/g) || [];
   const years = numbers.find((number) => Number(number) <= 30) || "";
   const rating = [...numbers].reverse().find((number) => Number(number) >= 1 && Number(number) <= 5) || "";
-  let observation = line
-    .replace(/\b(Yes|No)\b/gi, " ")
-    .replace(/\b\d{1,2}\b/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
+  let observation = extractSkillRemark(line);
   observation = observation.length > 160 ? `${observation.slice(0, 157)}...` : observation;
   return {
     willingness: yesNo[0] || "Yes",
@@ -288,6 +284,43 @@ function parseSkillRowFromLine(line) {
     rating,
     observation
   };
+}
+
+function cleanSkillRemark(value) {
+  return cleanValue(value)
+    .replace(/^[.:;,\s-]+/, "")
+    .replace(/\b(Number of children|Food handling preferences|Remarks?|Please specify)\b\s*[:：]?/gi, " ")
+    .replace(/\b(Yes|No)\b/gi, " ")
+    .replace(/\b\d{1,2}\b/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function extractSkillRemark(line) {
+  const text = String(line || "").replace(/\s+/g, " ");
+  const specify = text.match(/please specify\s*[:：]?\s*(.+?)(?=\s+(?:number of children|food handling preferences|remarks?|care of|general housework|cooking|language abilities)\b|$)/i);
+  if (specify?.[1]) return cleanSkillRemark(specify[1]);
+
+  const labelled = text.match(/(?:number of children|food handling preferences|remarks?)\s*[:：]?\s*(.+?)(?=\s+(?:please specify|care of|general housework|cooking|language abilities)\b|$)/i);
+  if (labelled?.[1]) return cleanSkillRemark(labelled[1]);
+
+  return cleanSkillRemark(text);
+}
+
+function skillSnippetForLine(lines, index, allRowPatterns) {
+  const snippet = [lines[index]];
+  for (let offset = 1; offset <= 3; offset += 1) {
+    const next = lines[index + offset];
+    if (!next) break;
+    const startsNextScope = allRowPatterns.some((pattern) => pattern.test(next));
+    if (startsNextScope && !/please specify|number of children|food handling preferences|remarks?/i.test(next)) break;
+    if (/please specify|number of children|food handling preferences|remarks?/i.test(next)) {
+      snippet.push(next);
+      continue;
+    }
+    if (offset === 1 && !/\b(Yes|No)\b/i.test(next)) snippet.push(next);
+  }
+  return snippet.join(" ");
 }
 
 function extractSkillAssessment(text, skills) {
@@ -300,10 +333,12 @@ function extractSkillAssessment(text, skills) {
     ["Language abilities", /mandarin|english|language/i]
   ];
   const textLines = linesOf(text);
+  const rowPatterns = rows.map(([, pattern]) => pattern);
   return rows
     .filter(([, pattern]) => pattern.test(text) || skills.some((skill) => pattern.test(skill)))
     .map(([area, pattern]) => {
-      const matchingLine = textLines.find((line) => pattern.test(line) && /\b(Yes|No|\d{1,2})\b/i.test(line));
+      const matchingIndex = textLines.findIndex((line) => pattern.test(line) && /\b(Yes|No|\d{1,2}|please specify)\b/i.test(line));
+      const matchingLine = matchingIndex >= 0 ? skillSnippetForLine(textLines, matchingIndex, rowPatterns) : "";
       const parsed = matchingLine ? parseSkillRowFromLine(matchingLine.replace(new RegExp(area, "i"), "")) : {};
       return {
         area,
