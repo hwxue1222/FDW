@@ -590,6 +590,34 @@ function removeTestImportedMaids(data) {
   });
 }
 
+function isLegacyDefaultEmptyStep(data, maidId, item, defaultStepNames) {
+  const status = item.status || "pending";
+  const hasDocuments = (data.documents || []).some((doc) => doc.maidId === maidId && doc.stage === item.step);
+  return (
+    defaultStepNames.has(item.step) &&
+    item.date === "TBC" &&
+    ["pending", "待处理"].includes(status) &&
+    !item.requirementsConfigured &&
+    !(item.requirements || []).length &&
+    !hasDocuments
+  );
+}
+
+function pruneLegacyDefaultProcessSteps(data) {
+  const defaultStepNames = new Set([...maidEmploymentProcessSteps, ...defaultTimelineSteps].map((step) => step.step));
+  const startedMaidIds = new Set();
+  (data.clients || []).forEach((client) => {
+    (client.hires || []).forEach((hire) => {
+      if (hire.processStarted && hire.maidId) startedMaidIds.add(hire.maidId);
+    });
+  });
+  startedMaidIds.forEach((maidId) => {
+    const items = data.timeline?.[maidId] || [];
+    if (items.length <= 1) return;
+    data.timeline[maidId] = items.filter((item, index) => index === 0 || !isLegacyDefaultEmptyStep(data, maidId, item, defaultStepNames));
+  });
+}
+
 function normalizeState(savedState) {
   const data = savedState || seed;
   const needsWatiReset = data.workflowVersion !== "wati-employment-process-v1";
@@ -709,6 +737,7 @@ function normalizeState(savedState) {
       }));
     });
   });
+  pruneLegacyDefaultProcessSteps(data);
   data.workflowVersion = "wati-employment-process-v1";
   return data;
 }
