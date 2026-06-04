@@ -731,6 +731,8 @@ let activeFrontCategory = "女佣";
 let activeFrontDetailId = "";
 let activeAdminCategory = "女佣";
 let activeMaidDetailId = "";
+let activeProcessMaidId = "";
+let activeProcessClientId = "";
 let currentLanguage = localStorage.getItem("bybridgeLanguage") || "en";
 let currentSession = parseStoredJson("bybridgeAdminSession");
 let activeViewId = ["front", "admin"].includes(localStorage.getItem("bybridgeActiveView")) ? localStorage.getItem("bybridgeActiveView") : "front";
@@ -2162,6 +2164,8 @@ function startEmploymentProcess(clientId, hireId) {
 
 function focusEmploymentProcess(clientId, maidId) {
   activeAdminTabId = "process";
+  activeProcessMaidId = maidId;
+  activeProcessClientId = clientId;
   localStorage.setItem("bybridgeAdminTab", "process");
   activateAdminTab("process", false);
   renderTimelineSelector();
@@ -3487,24 +3491,32 @@ function renderClients() {
 }
 
 function renderTimelineSelector() {
-  $("#timelineMaidSelect").innerHTML = workersForCategory()
+  const workers = workersForCategory();
+  const selectedWorkerId = workers.some((worker) => worker.id === activeProcessMaidId) ? activeProcessMaidId : workers[0]?.id || "";
+  $("#timelineMaidSelect").innerHTML = workers
     .map((worker) => `<option value="${worker.id}">${worker.name}</option>`)
     .join("");
+  if (selectedWorkerId) $("#timelineMaidSelect").value = selectedWorkerId;
 }
 
 function renderProcessSelectors() {
-  const maidId = $("#timelineMaidSelect").value || workersForCategory()[0]?.id;
+  const maidId = $("#timelineMaidSelect").value || activeProcessMaidId || workersForCategory()[0]?.id;
   const currentClientId = $("#processClientSelect").value;
   const linkedClient = firstClientForMaid(maidId);
   const clients = clientsForCategory();
-  const selectedClientId = clients.some((client) => client.id === currentClientId) ? currentClientId : linkedClient?.id;
+  const selectedClientId = clients.some((client) => client.id === activeProcessClientId)
+    ? activeProcessClientId
+    : clients.some((client) => client.id === currentClientId)
+      ? currentClientId
+      : linkedClient?.id;
   $("#processClientSelect").innerHTML = clients
     .map((client) => `<option value="${client.id}" ${client.id === selectedClientId ? "selected" : ""}>${client.name}</option>`)
     .join("");
+  activeProcessClientId = $("#processClientSelect").value || "";
 }
 
 function renderTimeline() {
-  const selected = $("#timelineMaidSelect").value;
+  const selected = $("#timelineMaidSelect").value || activeProcessMaidId;
   const maidId = workersForCategory().some((worker) => worker.id === selected) ? selected : workersForCategory()[0]?.id;
   if (!maidId) {
     $("#timelineList").innerHTML = `<div class="empty-state">${uiLabel("No manageable personnel in this category yet.", "当前分类还没有可管理的人员。")}</div>`;
@@ -3512,8 +3524,10 @@ function renderTimeline() {
     return;
   }
   $("#timelineMaidSelect").value = maidId;
+  activeProcessMaidId = maidId;
   renderProcessSelectors();
   const clientId = $("#processClientSelect").value || firstClientForMaid(maidId)?.id || "";
+  activeProcessClientId = clientId;
   const { client, hire } = hireForClientMaid(clientId, maidId);
   if (!client || !hire) {
     $("#timelineList").innerHTML = `
@@ -4155,8 +4169,15 @@ function bindEvents() {
     $(selector).addEventListener("change", renderFront);
   });
 
-  $("#timelineMaidSelect").addEventListener("change", renderTimeline);
-  $("#processClientSelect").addEventListener("change", renderTimeline);
+  $("#timelineMaidSelect").addEventListener("change", (event) => {
+    activeProcessMaidId = event.target.value;
+    activeProcessClientId = "";
+    renderTimeline();
+  });
+  $("#processClientSelect").addEventListener("change", (event) => {
+    activeProcessClientId = event.target.value;
+    renderTimeline();
+  });
 
   document.addEventListener("change", (event) => {
     const statusSelect = event.target.closest("[data-stage-status]");
