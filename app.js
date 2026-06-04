@@ -566,12 +566,8 @@ function normalizeDocumentStage(stage) {
 }
 
 function isTestImportedMaid(maid) {
-  const name = String(maid?.name || "").trim().toUpperCase();
   const refNo = String(maid?.refNo || "").trim().toUpperCase();
-  return (
-    ["MUHAROH", "CHINESE FOOD", "SITI AMINAH", "MARIA SANTOS", "THANDAR WIN"].includes(name) ||
-    ["PDF-625006", "PDF-017080", "DEMO-001", "DEMO-002", "DEMO-003"].includes(refNo)
-  );
+  return ["PDF-625006", "PDF-017080", "DEMO-001", "DEMO-002", "DEMO-003"].includes(refNo);
 }
 
 function removeTestImportedMaids(data) {
