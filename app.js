@@ -536,7 +536,12 @@ function normalizeTimelineStage(item) {
   };
   const normalizedItem = {
     ...item,
-    status: statusMap[item.status] || item.status || "pending"
+    status: statusMap[item.status] || item.status || "pending",
+    requirements: (item.requirements || []).map((requirement) => ({
+      templateTitle: requirement.templateTitle || requirement.name || "Document",
+      signerRole: requirement.signerRole || "Employer",
+      signatureArea: requirement.signatureArea || "Signature section"
+    }))
   };
   if (item.step === "Deployment Training") {
     return {
@@ -690,6 +695,8 @@ function normalizeState(savedState) {
     client.clientType = normalizeClientType(client.clientType || "new");
     (client.hires || []).forEach((hire) => {
       hire.clientType = normalizeClientType(hire.clientType || client.clientType);
+      hire.processStarted = Boolean(hire.processStarted);
+      hire.processStartedAt = hire.processStartedAt || "";
       const hiredMaid = data.maids.find((maid) => maid.id === hire.maidId);
       if (hiredMaid && isAvailableWorker(hiredMaid)) {
         hiredMaid.status = "已雇佣";
@@ -1697,6 +1704,8 @@ function addHireForClient(client, maidId, clientType = "new") {
     startDate: "TBC",
     status: "跟进中",
     consultant: "To be assigned",
+    processStarted: false,
+    processStartedAt: "",
     payments: defaultPaymentItems()
   };
   client.hires.push(hire);
@@ -1718,6 +1727,8 @@ function replaceHireForClient(client, maidId, clientType = "new") {
       startDate: "TBC",
       status: "跟进中",
       consultant: "To be assigned",
+      processStarted: false,
+      processStartedAt: "",
       payments: defaultPaymentItems()
     }
   ];
@@ -2096,13 +2107,61 @@ function clientsForCategory(category = activeAdminCategory) {
   );
 }
 
+function defaultTimelineForWorker(workerId) {
+  const worker = workerById(workerId);
+  const base = worker?.category === "女佣" ? maidEmploymentProcessSteps : defaultTimelineSteps;
+  return base.map((step) => normalizeTimelineStage({ ...step }));
+}
+
 function timelineItemsForMaid(maidId) {
-  state.timeline[maidId] = state.timeline[maidId] || [];
+  state.timeline[maidId] = state.timeline[maidId]?.length ? state.timeline[maidId] : defaultTimelineForWorker(maidId);
   return state.timeline[maidId];
 }
 
 function findTimelineStep(maidId, stage) {
   return timelineItemsForMaid(maidId).find((item) => item.step === stage);
+}
+
+function hireForClientMaid(clientId, maidId) {
+  const client = clientById(clientId);
+  const hire = (client?.hires || []).find((item) => item.maidId === maidId);
+  return { client, hire };
+}
+
+function selectedProcessHire() {
+  const maidId = $("#timelineMaidSelect").value || workersForCategory()[0]?.id || "";
+  const clientId = $("#processClientSelect").value || firstClientForMaid(maidId)?.id || "";
+  return { maidId, clientId, ...hireForClientMaid(clientId, maidId) };
+}
+
+function requirementsForStage(maidId, stage) {
+  const customRequirements = findTimelineStep(maidId, stage)?.requirements || [];
+  return customRequirements.length ? customRequirements : stageSigningRequirements[stage] || [];
+}
+
+function startEmploymentProcess(clientId, hireId) {
+  const client = clientById(clientId);
+  const hire = (client?.hires || []).find((item) => item.id === hireId);
+  if (!client || !hire) return;
+  hire.processStarted = true;
+  hire.processStartedAt = hire.processStartedAt || new Date().toISOString().slice(0, 10);
+  hire.status = "进行中";
+  const items = timelineItemsForMaid(hire.maidId);
+  if (items[0]) {
+    items[0].status = items[0].status === "completed" ? "completed" : "in process";
+    items[0].date = items[0].date === "TBC" ? hire.processStartedAt : items[0].date;
+  }
+}
+
+function focusEmploymentProcess(clientId, maidId) {
+  activeAdminTabId = "process";
+  localStorage.setItem("bybridgeAdminTab", "process");
+  activateAdminTab("process", false);
+  renderTimelineSelector();
+  if ($("#timelineMaidSelect")) $("#timelineMaidSelect").value = maidId;
+  renderProcessSelectors();
+  if ($("#processClientSelect")) $("#processClientSelect").value = clientId;
+  renderTimeline();
 }
 
 function markStepInProgress(maidId, stage) {
@@ -2117,7 +2176,7 @@ function completeStepAndOpenNext(maidId, stage) {
   const index = items.findIndex((item) => item.step === stage);
   if (index < 0) return;
   const stageDocs = documentsForStage(maidId, stage);
-  const requirements = stageSigningRequirements[stage] || [];
+  const requirements = requirementsForStage(maidId, stage);
   const allStageDocsSigned = requirements.length
     ? requirements.every((requirement) => documentsForRequirement(maidId, stage, requirement)?.status === "已签署")
     : stageDocs.length > 0 && stageDocs.every((doc) => doc.status === "已签署");
@@ -2307,6 +2366,32 @@ function signerLabel(role) {
   return role || uiLabel("Signer", "签署方");
 }
 
+function signingRequirementOptions() {
+  const byKey = new Map();
+  Object.values(stageSigningRequirements).flat().forEach((requirement) => {
+    byKey.set(requirementKey(requirement), requirement);
+  });
+  formTemplates
+    .filter((template) => template.categories.includes(activeAdminCategory))
+    .forEach((template) => {
+      const requirement = {
+        templateTitle: template.title,
+        signerRole: "Employer",
+        signatureArea: "Signature section"
+      };
+      byKey.set(requirementKey(requirement), requirement);
+    });
+  return [...byKey.values()].map((requirement) => ({
+    value: requirementKey(requirement),
+    label: `${requirement.templateTitle} · ${signerLabel(requirement.signerRole)}`,
+    requirement
+  }));
+}
+
+function requirementFromOptionValue(value) {
+  return signingRequirementOptions().find((option) => option.value === value)?.requirement || null;
+}
+
 function requirementKey(requirement) {
   return `${requirement.templateTitle}::${requirement.signerRole}`;
 }
@@ -2397,6 +2482,104 @@ function createSigningDocumentFromRequirement(requirement, stageOverride) {
   save();
   renderAll();
   return doc;
+}
+
+function requirementPreviewHtml(maidId, clientId, stage, requirement) {
+  const maid = workerById(maidId);
+  const client = clientById(clientId);
+  const draft = requirementDraftFor(maidId, clientId, stage, requirement);
+  const doc = documentsForRequirement(maidId, stage, requirement);
+  const filled = Boolean(draft || doc);
+  const signed = doc?.status === "已签署";
+  const rows = [
+    ["Document", requirement.templateTitle],
+    ["Stage", stage],
+    ["Client", client?.name || "-"],
+    ["Worker", maid?.name || "-"],
+    ["Reference No.", maid?.refNo || "-"],
+    ["Signer", signerLabel(doc?.signerRole || draft?.signerRole || requirement.signerRole)],
+    ["Signature Area", doc?.signatureArea || draft?.signatureArea || requirement.signatureArea],
+    ["Fill Status", filled ? "Filled" : "Not filled"],
+    ["Filled Date", doc?.filledAt || draft?.filledAt || "-"],
+    ["Signing Status", doc ? statusLabel(doc.status) : "Not sent"],
+    ["Signed Date", doc?.signedAt || "-"],
+    ["Fill Notes", doc?.fillNotes || draft?.fillNotes || "Information will be filled from worker and client profile."]
+  ];
+  return `<!doctype html>
+    <html>
+      <head>
+        <meta charset="utf-8" />
+        <style>
+          body { font-family: Arial, sans-serif; color: #1f2824; margin: 36px; }
+          h1 { color: #17613e; margin: 0 0 8px; font-size: 28px; }
+          .sub { color: #61706a; margin-bottom: 24px; }
+          table { border-collapse: collapse; width: 100%; }
+          th, td { border: 1px solid #d9e4df; padding: 12px 14px; text-align: left; vertical-align: top; }
+          th { width: 28%; background: #eef5f1; color: #4f6059; }
+          .signature { margin-top: 36px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+          .sig-box { border: 1px solid #d9e4df; padding: 14px; height: 90px; }
+          .line { border-bottom: 1px solid #66736d; margin-top: 38px; }
+        </style>
+      </head>
+      <body>
+        <h1>${escapeHtml(requirement.templateTitle)}</h1>
+        <div class="sub">${escapeHtml(stage)} · ${signed ? "Signed" : doc ? "Sent for signature" : filled ? "Filled, not sent" : "Draft preview"}</div>
+        <table>${rows.map(([label, value]) => `<tr><th>${escapeHtml(label)}</th><td>${escapeHtml(value)}</td></tr>`).join("")}</table>
+        <div class="signature">
+          ${["FDW", "Employer", "EA Personnel Name / Registration No."].map((label) => `<div class="sig-box"><strong>${label}</strong><div class="line"></div><small>Signature</small></div>`).join("")}
+        </div>
+      </body>
+    </html>`;
+}
+
+function openRequirementPreview(maidId, clientId, stage, requirement) {
+  if (!previewDialog || !previewFrame) return;
+  const previousUrl = previewFrame.dataset.objectUrl || "";
+  if (previousUrl) URL.revokeObjectURL(previousUrl);
+  const url = URL.createObjectURL(new Blob([requirementPreviewHtml(maidId, clientId, stage, requirement)], { type: "text/html" }));
+  previewFrame.dataset.objectUrl = url;
+  if (previewTitle) previewTitle.textContent = `${requirement.templateTitle} Preview`;
+  if (previewOpen) {
+    previewOpen.href = url;
+    previewOpen.removeAttribute("download");
+  }
+  previewFrame.src = url;
+  previewDialog.showModal();
+}
+
+function openAddProcessStepDialog(maidId, clientId) {
+  const requirementOptions = signingRequirementOptions();
+  openDialog(
+    uiLabel("Add Employment Process Step", "新增雇佣流程步骤"),
+    [
+      { label: uiLabel("Step Name", "步骤名称"), name: "step" },
+      { label: uiLabel("Target Date", "目标日期"), name: "date", value: "TBC", required: false },
+      { label: uiLabel("Step Note", "步骤说明"), name: "note", value: "Custom process step", required: false, full: true },
+      {
+        label: uiLabel("Documents to Sign", "需要签署的文件"),
+        name: "documents",
+        type: "checkboxGroup",
+        full: true,
+        options: requirementOptions
+      }
+    ],
+    (data) => {
+      const stepName = String(data.step || "").trim();
+      if (!stepName) throw new Error(uiLabel("Step name is required.", "步骤名称不能为空。"));
+      const requirements = (data.documents || []).map(requirementFromOptionValue).filter(Boolean);
+      timelineItemsForMaid(maidId).push(
+        normalizeTimelineStage({
+          step: stepName,
+          date: data.date || "TBC",
+          status: "pending",
+          note: data.note || "Custom process step",
+          requirements
+        })
+      );
+      const { hire } = hireForClientMaid(clientId, maidId);
+      if (hire) hire.processStarted = true;
+    }
+  );
 }
 
 function addFilesToStage(files, stage) {
@@ -3227,10 +3410,11 @@ function renderClients() {
                       <div class="hire-head">
                         <div>
                           <strong>${workerName(hire.maidId)} <span class="tag blue">${clientTypeLabel(hire.clientType || client.clientType)}</span></strong>
-                          <span>${hire.contractNo} · ${statusLabel(hire.status)} · ${uiLabel("Consultant", "顾问")} ${hire.consultant}</span>
+                          <span>${hire.contractNo} · ${statusLabel(hire.status)} · ${uiLabel("Consultant", "顾问")} ${hire.consultant}${hire.processStarted ? ` · ${uiLabel("Process started", "流程已启动")} ${hire.processStartedAt || ""}` : ""}</span>
                         </div>
                         <div class="row-actions">
                           <span class="tag ${hire.status === "面试中" ? "amber" : ""}">${uiLabel("Expected Start", "预计上岗")} ${hire.startDate}</span>
+                          <button class="${hire.processStarted ? "mini-btn" : "primary-btn"}" type="button" data-open-process="${client.id}" data-hire-id="${hire.id}" data-process-start="${hire.processStarted ? "0" : "1"}">${hire.processStarted ? uiLabel("Open Process", "打开流程") : uiLabel("Start Employment Process", "启动雇佣流程")}</button>
                           <button class="mini-btn" type="button" data-add-payment="${client.id}" data-hire-id="${hire.id}">${uiLabel("Add Fee", "新增收费")}</button>
                         </div>
                       </div>
@@ -3278,10 +3462,12 @@ function renderTimelineSelector() {
 
 function renderProcessSelectors() {
   const maidId = $("#timelineMaidSelect").value || workersForCategory()[0]?.id;
+  const currentClientId = $("#processClientSelect").value;
   const linkedClient = firstClientForMaid(maidId);
   const clients = clientsForCategory();
+  const selectedClientId = clients.some((client) => client.id === currentClientId) ? currentClientId : linkedClient?.id;
   $("#processClientSelect").innerHTML = clients
-    .map((client) => `<option value="${client.id}" ${client.id === linkedClient?.id ? "selected" : ""}>${client.name}</option>`)
+    .map((client) => `<option value="${client.id}" ${client.id === selectedClientId ? "selected" : ""}>${client.name}</option>`)
     .join("");
 }
 
@@ -3294,11 +3480,40 @@ function renderTimeline() {
     return;
   }
   $("#timelineMaidSelect").value = maidId;
+  renderProcessSelectors();
+  const clientId = $("#processClientSelect").value || firstClientForMaid(maidId)?.id || "";
+  const { client, hire } = hireForClientMaid(clientId, maidId);
+  if (!client || !hire) {
+    $("#timelineList").innerHTML = `
+      <div class="empty-state">
+        ${uiLabel("Select a client with this worker before starting the employment process.", "请先选择已经匹配这位人员的客户，再启动雇佣流程。")}
+      </div>
+    `;
+    return;
+  }
+  if (!hire.processStarted) {
+    $("#timelineList").innerHTML = `
+      <article class="process-start-card">
+        <p class="eyebrow">${uiLabel("Ready to Start", "可以启动")}</p>
+        <h3>${uiLabel("Start Employment Process", "启动雇佣流程")}</h3>
+        <p>${uiLabel(`Client ${client.name} has selected ${workerName(maidId)}. Start the process when you are ready to fill documents and send signing links.`, `客户 ${client.name} 已选择 ${workerName(maidId)}。准备填写文件和发送签署链接时，可以启动流程。`)}</p>
+        <button class="primary-btn" type="button" data-open-process="${client.id}" data-hire-id="${hire.id}" data-process-start="1">${uiLabel("Start Employment Process", "启动雇佣流程")}</button>
+      </article>
+    `;
+    return;
+  }
   const items = timelineItemsForMaid(maidId);
-  $("#timelineList").innerHTML = items
+  $("#timelineList").innerHTML = `
+    <div class="process-toolbar">
+      <div>
+        <span class="tag">${uiLabel("Started", "已启动")} ${hire.processStartedAt || "-"}</span>
+      </div>
+      <button class="mini-btn" type="button" data-add-process-step="${maidId}" data-client-id="${clientId}">${uiLabel("Add Step", "新增步骤")}</button>
+    </div>
+    ${items
     .map(
       (item, index) => `
-        <div class="timeline-item ${timelineClass(item.status)}" data-stage="${item.step}">
+        <div class="timeline-item ${timelineClass(item.status)}" data-stage="${escapeHtml(item.step)}">
           <strong>${item.date}</strong>
           <div class="timeline-main">
             <div>
@@ -3318,15 +3533,15 @@ function renderTimeline() {
         </div>
       `
     )
-    .join("");
-  renderProcessSelectors();
+    .join("")}
+  `;
 }
 
 function renderStageDocuments(maidId, stage) {
-  const requirements = stageSigningRequirements[stage] || [];
+  const requirements = requirementsForStage(maidId, stage);
   const clientId = $("#processClientSelect").value || firstClientForMaid(maidId)?.id || "";
   const docList = requirements
-    .map((requirement) => {
+    .map((requirement, index) => {
       const doc = documentsForRequirement(maidId, stage, requirement);
       const draft = requirementDraftFor(maidId, clientId, stage, requirement);
       const signed = doc?.status === "已签署";
@@ -3347,12 +3562,13 @@ function renderStageDocuments(maidId, stage) {
             </div>
           </div>
           <span class="tag ${signed ? "" : sent ? "red" : filled ? "amber" : "red"}">${sent ? statusLabel(doc.status) : filled ? uiLabel("Filled", "已填写") : uiLabel("Not Filled", "未填写")}</span>
+          <button class="mini-btn" type="button" data-preview-requirement-stage="${escapeHtml(stage)}" data-preview-requirement-index="${index}">${uiLabel("Preview", "预览")}</button>
           ${
             sent
               ? `<button class="mini-btn" data-copy-link="${doc.id}">${uiLabel("Copy Link", "复制链接")}</button>
                  <a class="mini-link" href="#sign=${doc.id}" target="_blank">${uiLabel("Open Signing", "打开签署")}</a>`
-              : `${filled ? `<button class="mini-btn" type="button" data-fill-requirement-stage="${stage}" data-fill-requirement-index="${requirements.indexOf(requirement)}">${uiLabel("Edit Fill", "修改填写")}</button>` : `<button class="mini-btn" type="button" data-fill-requirement-stage="${stage}" data-fill-requirement-index="${requirements.indexOf(requirement)}">${uiLabel("Fill Form", "填写文件")}</button>`}
-                 ${filled ? `<button class="primary-btn" type="button" data-send-requirement-stage="${stage}" data-send-requirement-index="${requirements.indexOf(requirement)}">${uiLabel(`Send to ${signerRole}`, `发送给${signerRole}`)}</button>` : ""}`
+              : `${filled ? `<button class="mini-btn" type="button" data-fill-requirement-stage="${escapeHtml(stage)}" data-fill-requirement-index="${index}">${uiLabel("Edit Fill", "修改填写")}</button>` : `<button class="mini-btn" type="button" data-fill-requirement-stage="${escapeHtml(stage)}" data-fill-requirement-index="${index}">${uiLabel("Fill Form", "填写文件")}</button>`}
+                 ${filled ? `<button class="primary-btn" type="button" data-send-requirement-stage="${escapeHtml(stage)}" data-send-requirement-index="${index}">${uiLabel(`Send to ${signerRole}`, `发送给${signerRole}`)}</button>` : ""}`
           }
         </div>
       `;
@@ -3575,12 +3791,16 @@ function openDialog(title, fields, onSubmit) {
             <div class="checkbox-grid">
               ${field.options
                 .map(
-                  (option) => `
+                  (option) => {
+                    const optionValue = typeof option === "string" ? option : option.value;
+                    const optionLabel = typeof option === "string" ? option : option.label;
+                    return `
                     <label class="check-option">
-                      <input type="checkbox" name="${field.name}" value="${option}" ${checkedValues.has(option) ? "checked" : ""} />
-                      <span>${option}</span>
+                      <input type="checkbox" name="${field.name}" value="${escapeHtml(optionValue)}" ${checkedValues.has(optionValue) ? "checked" : ""} />
+                      <span>${escapeHtml(optionLabel)}</span>
                     </label>
-                  `
+                  `;
+                  }
                 )
                 .join("")}
             </div>
@@ -3900,7 +4120,7 @@ function bindEvents() {
   });
 
   $("#timelineMaidSelect").addEventListener("change", renderTimeline);
-  $("#processClientSelect").addEventListener("change", renderProcessDocuments);
+  $("#processClientSelect").addEventListener("change", renderTimeline);
 
   document.addEventListener("change", (event) => {
     const statusSelect = event.target.closest("[data-stage-status]");
@@ -4114,6 +4334,26 @@ function bindEvents() {
   });
 
   document.addEventListener("click", (event) => {
+    const processButton = event.target.closest("[data-open-process]");
+    if (processButton) {
+      const client = clientById(processButton.dataset.openProcess);
+      const hire = (client?.hires || []).find((item) => item.id === processButton.dataset.hireId);
+      if (!client || !hire) return;
+      if (processButton.dataset.processStart === "1") {
+        startEmploymentProcess(client.id, hire.id);
+        save();
+        renderAll();
+      }
+      focusEmploymentProcess(client.id, hire.maidId);
+      return;
+    }
+
+    const addStepButton = event.target.closest("[data-add-process-step]");
+    if (addStepButton) {
+      openAddProcessStepDialog(addStepButton.dataset.addProcessStep, addStepButton.dataset.clientId);
+      return;
+    }
+
     const assignButton = event.target.closest("[data-assign-maid]");
     if (assignButton) {
       openAssignMaidDialog(assignButton.dataset.assignMaid);
@@ -4183,13 +4423,24 @@ function bindEvents() {
   });
 
   document.addEventListener("click", (event) => {
+    const previewRequirementButton = event.target.closest("[data-preview-requirement-stage]");
+    if (previewRequirementButton) {
+      const stage = previewRequirementButton.dataset.previewRequirementStage;
+      const index = Number(previewRequirementButton.dataset.previewRequirementIndex || 0);
+      const maidId = $("#timelineMaidSelect").value || workersForCategory()[0]?.id || "";
+      const clientId = $("#processClientSelect").value || firstClientForMaid(maidId)?.id || "";
+      const requirement = (requirementsForStage(maidId, stage) || [])[index];
+      if (requirement) openRequirementPreview(maidId, clientId, stage, requirement);
+      return;
+    }
+
     const fillButton = event.target.closest("[data-fill-requirement-stage]");
     if (fillButton) {
       const stage = fillButton.dataset.fillRequirementStage;
       const index = Number(fillButton.dataset.fillRequirementIndex || 0);
-      const requirement = (stageSigningRequirements[stage] || [])[index];
-      if (!requirement) return;
       const maidId = $("#timelineMaidSelect").value || workersForCategory()[0]?.id || "";
+      const requirement = (requirementsForStage(maidId, stage) || [])[index];
+      if (!requirement) return;
       const clientId = $("#processClientSelect").value || firstClientForMaid(maidId)?.id || "";
       if (!clientId) {
         alert(uiLabel("Please add or select a client in the current category first.", "请先在当前分类下新增或选择客户。"));
@@ -4215,7 +4466,8 @@ function bindEvents() {
     if (requirementButton) {
       const stage = requirementButton.dataset.sendRequirementStage;
       const index = Number(requirementButton.dataset.sendRequirementIndex || 0);
-      const requirement = (stageSigningRequirements[stage] || [])[index];
+      const maidId = $("#timelineMaidSelect").value || workersForCategory()[0]?.id || "";
+      const requirement = (requirementsForStage(maidId, stage) || [])[index];
       if (!requirement) return;
       if (!$("#processClientSelect").value) {
         alert(uiLabel("Please add or select a client in the current category first.", "请先在当前分类下新增或选择客户。"));
