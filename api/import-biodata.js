@@ -64,11 +64,90 @@ function escapeRegExp(value) {
   return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+const FIELD_LABELS = [
+  "Name of FDW",
+  "FDW Name",
+  "Maid's Name",
+  "Domestic worker name",
+  "Date of Birth",
+  "Birth Date",
+  "DOB",
+  "Nationality",
+  "Citizenship",
+  "Religion",
+  "Marital Status",
+  "Marital",
+  "Education",
+  "Highest Qualification",
+  "Height",
+  "Weight",
+  "Place of Birth",
+  "Birth Place",
+  "Home Town",
+  "Home City",
+  "Home Address",
+  "Address",
+  "No. of Siblings",
+  "Number of Siblings",
+  "Siblings",
+  "Passport No.",
+  "Passport No",
+  "Passport Number",
+  "FIN",
+  "WP No.",
+  "WP No",
+  "Work Permit No.",
+  "Work Permit Number",
+  "Repatriation Airport",
+  "Airport",
+  "Salary",
+  "Expected Salary",
+  "Experience",
+  "Years of Experience",
+  "Languages",
+  "Language",
+  "Spoken Language",
+  "Rest Day",
+  "Off Day",
+  "Medical Status",
+  "Medical Condition",
+  "Food Handling",
+  "Food Preference",
+  "Allergies",
+  "Allergy",
+  "Fears",
+  "Restrictions",
+  "Reference No.",
+  "Reference No",
+  "Ref No.",
+  "Ref No",
+  "Biodata No.",
+  "Code",
+  "Name"
+];
+
 function valueAfter(text, labels) {
-  for (const label of labels) {
-    const pattern = new RegExp(`(?:^|\\n)\\s*${escapeRegExp(label)}\\s*(?:[:：-])?\\s*([^\\n]+)`, "i");
-    const match = text.match(pattern);
-    if (match?.[1]) return cleanValue(match[1]);
+  const normalized = compactText(text);
+  const orderedLabels = [...labels].sort((a, b) => b.length - a.length);
+  const boundaryLabels = FIELD_LABELS.filter((label) => !orderedLabels.includes(label)).sort((a, b) => b.length - a.length);
+  for (const label of orderedLabels) {
+    const pattern = new RegExp(`(?:^|\\n|\\s)${escapeRegExp(label)}\\s*(?:[:：-])?\\s*`, "i");
+    const match = normalized.match(pattern);
+    if (!match) continue;
+    const start = match.index + match[0].length;
+    const lineEnd = normalized.indexOf("\n", start);
+    let value = normalized.slice(start, lineEnd >= 0 ? lineEnd : undefined).trim();
+    const nextLabelIndex = boundaryLabels
+      .map((boundary) => {
+        const found = value.search(new RegExp(`\\s${escapeRegExp(boundary)}\\s*(?:[:：-])?`, "i"));
+        return found >= 0 ? found : Infinity;
+      })
+      .reduce((min, found) => Math.min(min, found), Infinity);
+    if (Number.isFinite(nextLabelIndex)) {
+      value = value.slice(0, nextLabelIndex);
+    }
+    value = cleanValue(value);
+    if (value) return value;
   }
   return "";
 }
@@ -116,10 +195,17 @@ function titleCaseName(value) {
   return name.toUpperCase();
 }
 
+function isInvalidName(value) {
+  const name = cleanValue(value);
+  if (!name || name.length < 3 || name.length > 60) return true;
+  if (/\d/.test(name)) return true;
+  return /chinese food|cooking|cook|food|housework|elderly|disabled|infant|children|care|language|mandarin|english|salary|passport|religion|education|marital/i.test(name);
+}
+
 function extractName(text) {
-  const direct = valueAfter(text, ["Name", "Name of FDW", "FDW Name", "Domestic worker name"]);
-  if (direct) return titleCaseName(direct);
-  const candidate = linesOf(text).find((line) => /^[A-Z][A-Z @.'-]{8,}$/.test(line) && !/BIODATA|EMPLOYMENT|MINISTRY|AGENCY/.test(line));
+  const direct = valueAfter(text, ["Name of FDW", "FDW Name", "Maid's Name", "Domestic worker name", "Name"]);
+  if (!isInvalidName(direct)) return titleCaseName(direct);
+  const candidate = linesOf(text).find((line) => /^[A-Z][A-Z @.'-]{4,}$/.test(line) && !isInvalidName(line) && !/BIODATA|EMPLOYMENT|MINISTRY|AGENCY|SCOPE|SKILL/.test(line));
   return titleCaseName(candidate || "");
 }
 
@@ -184,6 +270,26 @@ function extractMedicalHistory(text) {
   });
 }
 
+function parseSkillRowFromLine(line) {
+  const yesNo = line.match(/\b(Yes|No)\b/gi) || [];
+  const numbers = line.match(/\b\d{1,2}\b/g) || [];
+  const years = numbers.find((number) => Number(number) <= 30) || "";
+  const rating = [...numbers].reverse().find((number) => Number(number) >= 1 && Number(number) <= 5) || "";
+  let observation = line
+    .replace(/\b(Yes|No)\b/gi, " ")
+    .replace(/\b\d{1,2}\b/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  observation = observation.length > 160 ? `${observation.slice(0, 157)}...` : observation;
+  return {
+    willingness: yesNo[0] || "Yes",
+    experience: yesNo[1] || yesNo[0] || "Yes",
+    years,
+    rating,
+    observation
+  };
+}
+
 function extractSkillAssessment(text, skills) {
   const rows = [
     ["Care of Infants / children", /infant|children|child care|baby/i],
@@ -193,16 +299,21 @@ function extractSkillAssessment(text, skills) {
     ["Cooking", /cook|cooking|food/i],
     ["Language abilities", /mandarin|english|language/i]
   ];
+  const textLines = linesOf(text);
   return rows
     .filter(([, pattern]) => pattern.test(text) || skills.some((skill) => pattern.test(skill)))
-    .map(([area]) => ({
-      area,
-      willingness: "Yes",
-      experience: "Yes",
-      years: "",
-      rating: "",
-      observation: "Auto-extracted from uploaded biodata PDF; please confirm details."
-    }));
+    .map(([area, pattern]) => {
+      const matchingLine = textLines.find((line) => pattern.test(line) && /\b(Yes|No|\d{1,2})\b/i.test(line));
+      const parsed = matchingLine ? parseSkillRowFromLine(matchingLine.replace(new RegExp(area, "i"), "")) : {};
+      return {
+        area,
+        willingness: parsed.willingness || "Yes",
+        experience: parsed.experience || "Yes",
+        years: parsed.years || "",
+        rating: parsed.rating || "",
+        observation: parsed.observation || "Auto-extracted from uploaded biodata PDF; please confirm details."
+      };
+    });
 }
 
 function extractEmploymentHistory(text, workedCountries) {
