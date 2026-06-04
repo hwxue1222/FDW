@@ -459,6 +459,9 @@ function cleanSkillRemark(value) {
   return cleanValue(value)
     .replace(/^[.:;,\s-]+/, "")
     .replace(/_+/g, " ")
+    .replace(/\bspec\s*ify\b/gi, "specify")
+    .replace(/\bran\s*ge\b/gi, "range")
+    .replace(/\bcuis\s*ines?\b/gi, "cuisines")
     .replace(/\bYES\s*YES\s*\d?\b/gi, " ")
     .replace(/\bNO\s*NO\s*\d?\b/gi, " ")
     .replace(/\b(Number of children|Food handling preferences|Remarks?|Please specify|age range|cuisines?|languages?|skills?)\b\s*[:：]?/gi, " ")
@@ -468,8 +471,17 @@ function cleanSkillRemark(value) {
     .trim();
 }
 
+function normalizeBrokenWords(value) {
+  return String(value || "")
+    .replace(/\bspec\s*ify\b/gi, "specify")
+    .replace(/\bran\s*ge\b/gi, "range")
+    .replace(/\bcuis\s*ines?\b/gi, "cuisines")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function extractSkillRemark(line) {
-  const text = String(line || "").replace(/\s+/g, " ");
+  const text = normalizeBrokenWords(line);
   const specify = text.match(/please specify(?:\s+[a-z ,/()]+?)?\s*[:：]?\s*(.+?)(?=\s+(?:number of children|food handling preferences|remarks?|care of|general housework|cooking|language abilities|other skills)\b|$)/i);
   if (specify?.[1]) return cleanSkillRemark(specify[1]);
 
@@ -477,6 +489,27 @@ function extractSkillRemark(line) {
   if (labelled?.[1]) return cleanSkillRemark(labelled[1]);
 
   return cleanSkillRemark(text);
+}
+
+function extractKnownSpecifyValues(text) {
+  const normalized = normalizeBrokenWords(text);
+  return {
+    infant: firstMatch(normalized, [/\b(NEW\s*BORN|NEWBORN)\b/i]),
+    cooking: firstMatch(normalized, [/\b(CHINESE\s+FOOD|MALAY\s+FOOD|INDIAN\s+FOOD|WESTERN\s+FOOD)\b/i]),
+    language: firstMatch(normalized, [/\b(MANDARIN\s*,?\s*ENGLISH|ENGLISH\s*,?\s*MANDARIN|BAHASA\s+INDONESIA|BASIC\s+ENGLISH)\b/i]),
+    other: firstMatch(normalized, [/\b(Baby\s+Care\s*,?\s*Ironing\s*,?\s*Pet\s+Care|Baby\s+Care|Ironing|Pet\s+Care)\b/i])
+  };
+}
+
+function specifyValueForRow(rowNo, block, values) {
+  const fromBlock = extractSkillRemark(block);
+  const looksWrong = !fromBlock || /auto-extracted|confirm details|care of|general housework|language abilities|other skills/i.test(fromBlock);
+  if (!looksWrong) return fromBlock;
+  if (rowNo === 1) return values.infant || "";
+  if (rowNo === 5) return values.cooking || "";
+  if (rowNo === 6) return values.language || "";
+  if (rowNo === 7) return values.other || "";
+  return "";
 }
 
 function skillSnippetForLine(lines, index, allRowPatterns) {
@@ -513,21 +546,33 @@ function extractSkillAssessment(text, skills) {
     { no: 7, area: "Other skills", pattern: /other skills|baby care|ironing|pet care/i, start: /^other skills/i }
   ];
   const textLines = linesOf(text);
+  const knownSpecifyValues = extractKnownSpecifyValues(text);
+  const standaloneRatings = extractStandaloneSkillRatings(textLines);
   const rowStartPattern = /^\s*(?:[1-7]\s+)?(?:care of infants|care of elderly|care of disabled|general housework|cooking|language abilities|other skills)\b/i;
   return rows
     .filter(({ pattern }) => pattern.test(text) || skills.some((skill) => pattern.test(skill)))
     .map(({ no, area, pattern, start }) => {
       const block = skillBlockForRow(textLines, no, pattern, start, rowStartPattern);
       const parsed = block ? parseSkillRowFromLine(block.replace(new RegExp(area, "i"), "")) : {};
+      const observation = specifyValueForRow(no, block, knownSpecifyValues) || parsed.observation;
       return {
         area,
         willingness: parsed.willingness || "Yes",
         experience: parsed.experience || "Yes",
         years: parsed.years || "",
-        rating: parsed.rating || "",
-        observation: parsed.observation || "Auto-extracted from uploaded biodata PDF; please confirm details."
+        rating: standaloneRatings[no - 1] || parsed.rating || "",
+        observation: observation || "Auto-extracted from uploaded biodata PDF; please confirm details."
       };
     });
+}
+
+function extractStandaloneSkillRatings(lines) {
+  const skillStart = lines.findIndex((line) => /areas\s+of\s+work|skills\s+of\s+fdw/i.test(line));
+  const source = skillStart >= 0 ? lines.slice(skillStart) : lines;
+  const ratings = source
+    .map((line) => line.trim())
+    .filter((line) => /^[1-5]$/.test(line));
+  return ratings.slice(0, 7);
 }
 
 function skillBlockForRow(lines, rowNo, areaPattern, startPattern, rowStartPattern) {
