@@ -1003,7 +1003,7 @@ if (recordDialog) {
 }
 
 function pdfText(value) {
-  return displayValue(value).replace(/[^\x09\x0A\x0D\x20-\x7E]/g, " ");
+  return String(displayValue(value)).replace(/[^\x09\x0A\x0D\x20-\x7E]/g, " ");
 }
 
 function escapePdfString(value) {
