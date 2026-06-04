@@ -2113,6 +2113,10 @@ function defaultTimelineForWorker(workerId) {
   return base.map((step) => normalizeTimelineStage({ ...step }));
 }
 
+function firstTimelineStepForWorker(workerId) {
+  return defaultTimelineForWorker(workerId).slice(0, 1);
+}
+
 function timelineItemsForMaid(maidId) {
   state.timeline[maidId] = state.timeline[maidId]?.length ? state.timeline[maidId] : defaultTimelineForWorker(maidId);
   return state.timeline[maidId];
@@ -2146,7 +2150,8 @@ function startEmploymentProcess(clientId, hireId) {
   hire.processStarted = true;
   hire.processStartedAt = hire.processStartedAt || new Date().toISOString().slice(0, 10);
   hire.status = "进行中";
-  const items = timelineItemsForMaid(hire.maidId);
+  state.timeline[hire.maidId] = firstTimelineStepForWorker(hire.maidId);
+  const items = state.timeline[hire.maidId];
   if (items[0]) {
     items[0].status = items[0].status === "completed" ? "completed" : "in process";
     items[0].date = items[0].date === "TBC" ? hire.processStartedAt : items[0].date;
