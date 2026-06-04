@@ -505,6 +505,10 @@ function extractKnownSpecifyValues(text) {
 
 function specifyValueForRow(rowNo, block, values) {
   const fromBlock = extractSkillRemark(block);
+  if (rowNo === 1 && values.infant) return values.infant;
+  if (rowNo === 5 && values.cooking) return values.cooking;
+  if (rowNo === 6 && values.language) return values.language;
+  if (rowNo === 7 && values.other) return values.other;
   const looksWrong = !fromBlock || /auto-extracted|confirm details|care of|general housework|language abilities|other skills|age range|ge range|cuisines|uisines/i.test(fromBlock);
   if (!looksWrong) return fromBlock;
   if (rowNo === 1) return values.infant || "";
@@ -616,6 +620,8 @@ function extractLanguageSpecifyFromText(text) {
 
 function normalizeLanguageValue(value) {
   const cleaned = cleanSkillRemark(value)
+    .replace(/\bNEW\s*BORN\b/gi, " ")
+    .replace(/\bBABY\s*CARE\b/gi, " ")
     .replace(/\babilities\s*\(?spoken\)?\b/gi, " ")
     .replace(/\blanguage\b/gi, " ")
     .replace(/\s*,\s*/g, ", ")
