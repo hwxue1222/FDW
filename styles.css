@@ -246,7 +246,7 @@ main {
 }
 
 .front-layout {
-  grid-template-columns: 260px 1fr;
+  grid-template-columns: 1fr;
 }
 
 .admin-layout {
@@ -293,6 +293,28 @@ textarea {
 
 .filter-panel label + label {
   margin-top: 16px;
+}
+
+.category-filter-panel {
+  display: grid;
+  grid-template-columns: auto repeat(3, minmax(150px, 220px));
+  gap: 12px;
+  align-items: end;
+  width: fit-content;
+  max-width: 100%;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--white);
+  box-shadow: var(--shadow);
+}
+
+.category-filter-panel .eyebrow {
+  margin-bottom: 11px;
+}
+
+.category-filter-panel label {
+  min-width: 150px;
 }
 
 .section-head {
@@ -1937,6 +1959,19 @@ menu {
 
   .worker-grid {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .category-filter-panel {
+    width: 100%;
+    grid-template-columns: 1fr;
+  }
+
+  .category-filter-panel .eyebrow {
+    margin-bottom: 0;
+  }
+
+  .category-filter-panel label {
+    min-width: 0;
   }
 
   .maid-card {

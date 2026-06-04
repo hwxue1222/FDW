@@ -758,6 +758,7 @@ const initialLocalState = parseStoredJson("maidAgencyState");
 const state = normalizeState(initialLocalState ? cloneState(initialLocalState) : null);
 let activeFrontCategory = "女佣";
 let activeFrontDetailId = "";
+let frontFiltersByCategory = parseStoredJson("bybridgeFrontFilters") || {};
 let activeAdminCategory = "女佣";
 let activeMaidDetailId = "";
 let activeProcessMaidId = "";
@@ -1143,10 +1144,6 @@ function renderLanguageLabels() {
   document.documentElement.lang = currentLanguage === "en" ? "en" : "zh-CN";
   $("#frontModeBtn").textContent = txt().front;
   $("#adminModeBtn").textContent = txt().admin;
-  $("#filterTitle").textContent = txt().filters;
-  $("#nationalityLabel").textContent = txt().nationality;
-  $("#experienceLabel").textContent = txt().experience;
-  $("#skillLabel").textContent = txt().skill;
   $("#timelineWorkerLabel").textContent = uiLabel("Select Worker", "选择人员");
   $("#processClientLabel").textContent = uiLabel("Client", "客户");
   $("#dialogCancelBtn").textContent = uiLabel("Cancel", "取消");
@@ -2747,36 +2744,73 @@ function allFrontWorkers() {
 }
 
 function initFilters() {
-  const workers = allFrontWorkers();
-  const nationalities = [...new Set(workers.map((worker) => worker.nationality))];
-  const skills = [...new Set(workers.flatMap((worker) => worker.skills))];
-  setSelectOptions($("#nationalityFilter"), [
-    { value: "全部", label: txt().all },
-    ...nationalities.map((item) => ({ value: item, label: item }))
-  ]);
-  setSelectOptions($("#skillFilter"), [
-    { value: "全部", label: txt().all },
-    ...skills.map((item) => ({ value: item, label: item }))
-  ]);
+  frontFiltersByCategory = frontFiltersByCategory || {};
+}
+
+function frontFiltersForCategory(category) {
+  frontFiltersByCategory[category] = {
+    nationality: "全部",
+    experience: "全部",
+    skill: "全部",
+    ...(frontFiltersByCategory[category] || {})
+  };
+  return frontFiltersByCategory[category];
+}
+
+function filterSelectMarkup(name, label, value, options) {
+  return `
+    <label>
+      <span>${label}</span>
+      <select data-front-filter="${name}">
+        ${options
+          .map((option) => `<option value="${escapeHtml(option.value)}" ${String(value) === String(option.value) ? "selected" : ""}>${escapeHtml(option.label)}</option>`)
+          .join("")}
+      </select>
+    </label>
+  `;
+}
+
+function renderCategoryFilters(category, categoryWorkers) {
+  const filters = frontFiltersForCategory(category);
+  const nationalities = [...new Set(categoryWorkers.map((worker) => worker.nationality).filter(Boolean))];
+  const skills = [...new Set(categoryWorkers.flatMap((worker) => worker.skills || []).filter(Boolean))];
+  const nationalOptions = [{ value: "全部", label: txt().all }, ...nationalities.map((item) => ({ value: item, label: item }))];
+  const skillOptions = [{ value: "全部", label: txt().all }, ...skills.map((item) => ({ value: item, label: item }))];
+  if (!nationalOptions.some((option) => option.value === filters.nationality)) filters.nationality = "全部";
+  if (!skillOptions.some((option) => option.value === filters.skill)) filters.skill = "全部";
+  return `
+    <div class="category-filter-panel">
+      <div>
+        <p class="eyebrow">${txt().filters}</p>
+      </div>
+      ${filterSelectMarkup("nationality", txt().nationality, filters.nationality, nationalOptions)}
+      ${filterSelectMarkup("experience", txt().experience, filters.experience, [
+        { value: "全部", label: txt().all },
+        { value: "2", label: txt().yearsMore(2) },
+        { value: "4", label: txt().yearsMore(4) },
+        { value: "6", label: txt().yearsMore(6) }
+      ])}
+      ${filterSelectMarkup("skill", txt().skill, filters.skill, skillOptions)}
+    </div>
+  `;
 }
 
 function renderFront() {
-  const nationality = $("#nationalityFilter").value;
-  const experience = $("#experienceFilter").value;
-  const skill = $("#skillFilter").value;
-  const filteredByControls = allFrontWorkers().filter((worker) => {
-    const matchNationality = nationality === "全部" || worker.nationality === nationality;
-    const matchExperience = experience === "全部" || worker.experience >= Number(experience);
-    const matchSkill = skill === "全部" || worker.skills.includes(skill);
+  const allWorkers = allFrontWorkers();
+  const categoryWorkers = allWorkers.filter((worker) => worker.category === activeFrontCategory);
+  const filters = frontFiltersForCategory(activeFrontCategory);
+  const workers = categoryWorkers.filter((worker) => {
+    const matchNationality = filters.nationality === "全部" || worker.nationality === filters.nationality;
+    const matchExperience = filters.experience === "全部" || worker.experience >= Number(filters.experience);
+    const matchSkill = filters.skill === "全部" || worker.skills.includes(filters.skill);
     return matchNationality && matchExperience && matchSkill;
   });
-  const workers = filteredByControls.filter((worker) => worker.category === activeFrontCategory);
   const meta = categoryMeta[activeFrontCategory];
   const footer = renderFrontFooter();
 
   $("#categoryTabs").innerHTML = Object.keys(categoryMeta)
     .map((key) => {
-      const count = filteredByControls.filter((worker) => worker.category === key).length;
+      const count = allWorkers.filter((worker) => worker.category === key).length;
       return `
         <button class="category-tab ${key === activeFrontCategory ? "active" : ""}" type="button" data-category="${key}" role="tab" aria-selected="${key === activeFrontCategory}">
           <span>${localized(categoryMeta[key].title)}</span>
@@ -2811,6 +2845,7 @@ function renderFront() {
             <p>${localized(meta.description)}</p>
           </div>
         </div>
+        ${renderCategoryFilters(activeFrontCategory, categoryWorkers)}
         <div class="empty-state">${txt().empty(localized(meta.title))}</div>
         ${footer}
       </section>
@@ -2826,6 +2861,7 @@ function renderFront() {
           <p>${localized(meta.description)}</p>
         </div>
       </div>
+      ${renderCategoryFilters(activeFrontCategory, categoryWorkers)}
       <div class="worker-grid">
         ${workers
           .map(
@@ -4194,8 +4230,14 @@ function bindEvents() {
     $("#termsDialog").close();
   });
 
-  ["#nationalityFilter", "#experienceFilter", "#skillFilter"].forEach((selector) => {
-    $(selector).addEventListener("change", renderFront);
+  document.addEventListener("change", (event) => {
+    const filter = event.target.closest("[data-front-filter]");
+    if (!filter) return;
+    const filters = frontFiltersForCategory(activeFrontCategory);
+    filters[filter.dataset.frontFilter] = filter.value;
+    localStorage.setItem("bybridgeFrontFilters", JSON.stringify(frontFiltersByCategory));
+    activeFrontDetailId = "";
+    renderFront();
   });
 
   $("#timelineMaidSelect").addEventListener("change", (event) => {
