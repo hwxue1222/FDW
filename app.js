@@ -24,7 +24,6 @@ const seed = {
       siblings: 4,
       workedCountries: ["Taiwan", "Hong Kong", "Singapore"],
       offDay: "To be confirmed",
-      medicalStatus: "No declared chronic illness",
       medicalHistory: [
         { item: "Mental illness", status: "No" },
         { item: "Epilepsy", status: "No" },
@@ -144,7 +143,6 @@ const seed = {
       originCity: "Surabaya",
       workedCountries: ["Singapore", "Malaysia"],
       offDay: "2 days per month",
-      medicalStatus: "Medical check pending arrangement",
       skills: ["Elderly care", "Cooking", "Housework"],
       duties: ["Elderly care", "Wheelchair assistance", "Simple Chinese meals", "Daily cleaning"],
       status: "可预约",
@@ -169,7 +167,6 @@ const seed = {
       originCity: "Iloilo",
       workedCountries: ["Singapore", "Hong Kong"],
       offDay: "4 days per month",
-      medicalStatus: "Pre-entry medical check passed",
       skills: ["Child care", "Homework support", "Cooking"],
       duties: ["Young child care", "English communication", "School pick-up", "Simple Western meals"],
       status: "面试中",
@@ -194,7 +191,6 @@ const seed = {
       originCity: "Yangon",
       workedCountries: ["Myanmar", "Singapore"],
       offDay: "2 days per month",
-      medicalStatus: "Medical check pending",
       skills: ["Housework", "Pet care", "Cooking"],
       duties: ["Whole-home cleaning", "Laundry and ironing", "Pet feeding", "Simple cooking"],
       status: "可预约",
@@ -334,7 +330,6 @@ const defaultMaidDetails = {
   originCity: "To be filled",
   workedCountries: [],
   offDay: "To be confirmed",
-  medicalStatus: "Medical check pending",
   foodHandling: "To be filled",
   allergies: "To be filled",
   physicalDisabilities: "",
@@ -906,6 +901,45 @@ function displayValue(value, fallback = "-") {
   return value || fallback;
 }
 
+const preserveCaseKeys = new Set([
+  "id",
+  "name",
+  "refNo",
+  "passportNo",
+  "fin",
+  "wpNo",
+  "photoUrl",
+  "username",
+  "password",
+  "currentPassword",
+  "newPassword",
+  "token",
+  "role",
+  "status"
+]);
+
+function lowerCaseIfAllCaps(value) {
+  if (typeof value !== "string") return value;
+  const letters = value.match(/[A-Za-z]/g) || [];
+  if (letters.length < 3) return value;
+  const hasLowerCase = /[a-z]/.test(value);
+  const upperCaseLetters = letters.filter((letter) => /[A-Z]/.test(letter)).length;
+  return !hasLowerCase && upperCaseLetters / letters.length > 0.8 ? value.toLowerCase() : value;
+}
+
+function normalizeUppercaseText(value, key = "") {
+  if (Array.isArray(value)) return value.map((item) => normalizeUppercaseText(item, key));
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).map(([childKey, childValue]) => [
+        childKey,
+        preserveCaseKeys.has(childKey) ? childValue : normalizeUppercaseText(childValue, childKey)
+      ])
+    );
+  }
+  return preserveCaseKeys.has(key) ? value : lowerCaseIfAllCaps(value);
+}
+
 function heightWeightValue(maid) {
   const height = maid.height ? `${maid.height} cm` : "";
   const weight = maid.weight ? `${maid.weight} kg` : "";
@@ -914,6 +948,14 @@ function heightWeightValue(maid) {
 
 function medicalRecordStatus(maid, itemName) {
   return (maid.medicalHistory || []).find((item) => String(item.item || "").toLowerCase() === itemName.toLowerCase())?.status || "";
+}
+
+const separateHealthRecordItems = new Set(["physical disabilities", "dietary restrictions"]);
+
+function editableMedicalHistory(maid) {
+  return (maid.medicalHistory || []).filter(
+    (item) => !separateHealthRecordItems.has(String(item.item || "").trim().toLowerCase())
+  );
 }
 
 function foodHandlingParts(value) {
@@ -1235,12 +1277,11 @@ function buildMaidProfilePdf(maid) {
 
   pdf.heading("Health, Food Handling and Restrictions");
   pdf.table(["Field", "Value", "Field", "Value"], labelValueRows([
-    ["Medical Status", maid.medicalStatus],
     ["Allergies (if any)", maid.allergies],
     ["Physical disabilities", maid.physicalDisabilities || medicalRecordStatus(maid, "Physical disabilities")],
     ["Dietary restrictions", maid.dietaryRestrictions || medicalRecordStatus(maid, "Dietary restrictions")],
     ["Food handling preferences", maid.foodHandling],
-    ["Medical History", (maid.medicalHistory || []).map((item) => `${item.item}: ${item.status}`).join("; ")]
+    ["Medical History", editableMedicalHistory(maid).map((item) => `${item.item}: ${item.status}`).join("; ")]
   ]), twoColWidths);
 
   pdf.heading("Scope of Work and Skills");
@@ -1742,7 +1783,6 @@ function openMaidProfileSectionDialog(maidId, section) {
     openDialog(
       uiLabel("Edit Health, Food Handling and Restrictions", "编辑健康、饮食与限制"),
       [
-        { label: "Medical Status", name: "medicalStatus", value: maid.medicalStatus || "", full: true },
         { label: "Allergies (if any)", name: "allergies", value: maid.allergies || "", type: "textarea", full: true, required: false },
         { label: "Physical disabilities", name: "physicalDisabilities", value: maid.physicalDisabilities || medicalRecordStatus(maid, "Physical disabilities"), full: true, required: false },
         { label: "Dietary restrictions", name: "dietaryRestrictions", value: maid.dietaryRestrictions || medicalRecordStatus(maid, "Dietary restrictions"), full: true, required: false },
@@ -1762,7 +1802,7 @@ function openMaidProfileSectionDialog(maidId, section) {
           name: "medicalHistory",
           type: "rowEditor",
           full: true,
-          rows: maid.medicalHistory || [],
+          rows: editableMedicalHistory(maid),
           columns: [
             { name: "item", label: "Item", width: "minmax(180px, 1fr)" },
             { name: "status", label: "Status", width: "minmax(120px, 1fr)" }
@@ -1770,7 +1810,6 @@ function openMaidProfileSectionDialog(maidId, section) {
         }
       ],
       (data) => {
-        maid.medicalStatus = data.medicalStatus;
         maid.allergies = data.allergies;
         maid.physicalDisabilities = data.physicalDisabilities;
         maid.dietaryRestrictions = data.dietaryRestrictions;
@@ -2026,7 +2065,7 @@ function formatListLines(value) {
 }
 
 function normalizeImportedMaid(maid) {
-  return {
+  return normalizeUppercaseText({
     ...defaultMaidDetails,
     ...maid,
     id: maid.id || `m${Date.now()}`,
@@ -2043,7 +2082,7 @@ function normalizeImportedMaid(maid) {
     evaluationMethods: maid.evaluationMethods || [],
     interviewAvailability: maid.interviewAvailability || [],
     status: maid.status || "可预约"
-  };
+  });
 }
 
 function stagePackage(maidId, clientId, stage) {
@@ -2711,10 +2750,10 @@ function renderMaidDetail(maid, options = {}) {
   const isFrontDetail = options.context === "front";
   const canEditProfileSections = !isFrontDetail && isAdminLoggedIn();
   const selectedEvaluationMethods = new Set(maid.evaluationMethods || []);
-  const medicalRows = (maid.medicalHistory || [])
+  const medicalRows = editableMedicalHistory(maid)
     .map((item) => {
       const status = item.status || "-";
-      const clearStatus = ["No", "N/A", "-", "Nil", "None"].includes(status);
+      const clearStatus = ["no", "n/a", "-", "nil", "none"].includes(String(status).trim().toLowerCase());
       return `
         <div class="medical-chip ${clearStatus ? "" : "attention"}">
           <span>${item.item || "-"}</span>
@@ -2835,7 +2874,6 @@ function renderMaidDetail(maid, options = {}) {
         </div>
         <div class="profile-grid maid-fixed-grid">
           ${detailFields([
-            [uiLabel("Medical Status", "医疗状态"), maid.medicalStatus],
             ["Allergies (if any)", maid.allergies],
             ["Physical disabilities", maid.physicalDisabilities || medicalRecordStatus(maid, "Physical disabilities")],
             ["Dietary restrictions", maid.dietaryRestrictions || medicalRecordStatus(maid, "Dietary restrictions")],
@@ -3480,7 +3518,7 @@ function openDialog(title, fields, onSubmit) {
           .filter((row) => Object.values(row).some(Boolean));
       });
     try {
-      await onSubmit(data);
+      await onSubmit(normalizeUppercaseText(data));
       save();
       renderAll();
       dialog.close();
@@ -3809,7 +3847,6 @@ function bindEvents() {
         { label: uiLabel("Worked Countries, comma-separated", "经验国家，用逗号分隔"), name: "workedCountries", full: true },
         { label: uiLabel("Duties, comma-separated", "可做事项，用逗号分隔"), name: "duties", full: true },
         { label: uiLabel("Rest Day", "休息日"), name: "offDay" },
-        { label: uiLabel("Medical Status", "体检状态"), name: "medicalStatus" },
         { label: uiLabel("Medical History, one per line: Item: Status", "医疗记录，每行格式：项目: 状态"), name: "medicalHistory", type: "textarea", full: true },
         {
           label: "18. Food handling preference",
@@ -4066,9 +4103,14 @@ function bindEvents() {
   window.addEventListener("storage", (event) => {
     if (event.key !== "maidAgencyState" || !event.newValue) return;
     Object.assign(state, normalizeState(JSON.parse(event.newValue)));
+    state.maids = state.maids.map((maid) => normalizeUppercaseText(maid));
+    state.clients = state.clients.map((client) => normalizeUppercaseText(client));
     renderAll();
   });
 }
 
+state.maids = state.maids.map((maid) => normalizeUppercaseText(maid));
+state.clients = state.clients.map((client) => normalizeUppercaseText(client));
+save();
 bindEvents();
 renderAll();

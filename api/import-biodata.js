@@ -110,8 +110,6 @@ const FIELD_LABELS = [
   "Spoken Language",
   "Rest Day",
   "Off Day",
-  "Medical Status",
-  "Medical Condition",
   "Food Handling",
   "Food Preference",
   "Allergies",
@@ -657,7 +655,7 @@ function extractMaid(text, fileBuffer) {
   const skillAssessment = extractSkillAssessment(normalized, skills);
   const languagesFromSkills = extractLanguagesFromSkillAssessment(skillAssessment) || extractLanguageSpecifyFromText(normalized);
   const medicalHistory = extractMedicalHistory(normalized);
-  const medicalStatusFor = (itemName) => medicalHistory.find((item) => item.item.toLowerCase() === itemName.toLowerCase())?.status || "";
+  const healthRecordStatusFor = (itemName) => medicalHistory.find((item) => item.item.toLowerCase() === itemName.toLowerCase())?.status || "";
 
   return {
     id: `m${Date.now()}`,
@@ -683,12 +681,11 @@ function extractMaid(text, fileBuffer) {
     siblings: extractNumber(normalized, ["No. of Siblings", "Number of Siblings", "Siblings"]),
     workedCountries,
     offDay: valueAfter(normalized, ["Rest Day", "Off Day"]) || "To be confirmed",
-    medicalStatus: valueAfter(normalized, ["Medical Status", "Medical Condition"]) || "No declared chronic illness",
     medicalHistory,
     foodHandling: valueAfter(normalized, ["Food handling preferences", "Food Handling", "Food Preference"]) || "To be filled",
     allergies: valueAfter(normalized, ["Allergies", "Allergy", "Fears", "Restrictions"]) || "To be filled",
-    physicalDisabilities: medicalStatusFor("Physical disabilities"),
-    dietaryRestrictions: medicalStatusFor("Dietary restrictions"),
+    physicalDisabilities: healthRecordStatusFor("Physical disabilities"),
+    dietaryRestrictions: healthRecordStatusFor("Dietary restrictions"),
     evaluationMethods: ["Based on FDW's declaration, no evaluation/observation by EA or overseas training centre / EA"],
     interviewAvailability: [],
     skills,
