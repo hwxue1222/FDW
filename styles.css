@@ -253,6 +253,10 @@ main {
   grid-template-columns: 220px 1fr;
 }
 
+.admin-layout.sidebar-collapsed {
+  grid-template-columns: 78px 1fr;
+}
+
 .filter-panel,
 .sidebar {
   background: var(--white);
@@ -663,6 +667,25 @@ textarea {
   gap: 8px;
 }
 
+.sidebar-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--green-dark);
+  background: #f8fbf9;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.sidebar-toggle:hover {
+  background: #eaf5ef;
+}
+
 .admin-category-switch {
   display: grid;
   gap: 14px;
@@ -712,6 +735,81 @@ textarea {
   padding: 12px 14px;
   border-radius: 8px;
   text-align: left;
+}
+
+.admin-layout.sidebar-collapsed .sidebar {
+  padding: 12px 10px;
+}
+
+.admin-layout.sidebar-collapsed .sidebar-toggle {
+  padding: 10px 6px;
+}
+
+.admin-layout.sidebar-collapsed #adminSidebarToggleText {
+  font-size: 0;
+}
+
+.admin-layout.sidebar-collapsed #adminSidebarToggleText::before {
+  content: ">";
+  font-size: 18px;
+  line-height: 1;
+}
+
+.admin-layout.sidebar-collapsed .admin-category-switch {
+  gap: 10px;
+}
+
+.admin-layout.sidebar-collapsed .admin-category-group {
+  gap: 6px;
+  padding-bottom: 10px;
+}
+
+.admin-layout.sidebar-collapsed .admin-category-heading {
+  justify-content: center;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.admin-layout.sidebar-collapsed .admin-category-heading span {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 34px;
+  border-radius: 8px;
+  background: #f8fbf9;
+  font-size: 0;
+}
+
+.admin-layout.sidebar-collapsed .admin-category-heading span::before {
+  content: attr(data-short);
+  color: var(--green-dark);
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.admin-layout.sidebar-collapsed .admin-category-heading em {
+  min-width: 22px;
+  height: 22px;
+  font-size: 11px;
+}
+
+.admin-layout.sidebar-collapsed .admin-module-list {
+  gap: 5px;
+}
+
+.admin-layout.sidebar-collapsed .sidebar button:not(.sidebar-toggle) {
+  display: grid;
+  place-items: center;
+  min-height: 38px;
+  padding: 8px 4px;
+  font-size: 0;
+  text-align: center;
+}
+
+.admin-layout.sidebar-collapsed .sidebar button:not(.sidebar-toggle)::before {
+  content: attr(data-short);
+  font-size: 13px;
+  font-weight: 800;
 }
 
 .sidebar-downloads {
@@ -1745,6 +1843,7 @@ menu {
 
   .front-layout,
   .admin-layout,
+  .admin-layout.sidebar-collapsed,
   .two-column,
   .worker-grid,
   .metric-grid,
@@ -1768,6 +1867,44 @@ menu {
 
   .sidebar {
     position: static;
+  }
+
+  .admin-layout.sidebar-collapsed .sidebar {
+    padding: 14px;
+  }
+
+  .admin-layout.sidebar-collapsed #adminSidebarToggleText {
+    font-size: 13px;
+  }
+
+  .admin-layout.sidebar-collapsed #adminSidebarToggleText::before {
+    content: none;
+  }
+
+  .admin-layout.sidebar-collapsed .admin-category-heading {
+    align-items: center;
+    justify-content: space-between;
+    flex-direction: row;
+  }
+
+  .admin-layout.sidebar-collapsed .admin-category-heading span {
+    display: inline;
+    width: auto;
+    height: auto;
+    background: transparent;
+    font-size: 14px;
+  }
+
+  .admin-layout.sidebar-collapsed .admin-category-heading span::before,
+  .admin-layout.sidebar-collapsed .sidebar button:not(.sidebar-toggle)::before {
+    content: none;
+  }
+
+  .admin-layout.sidebar-collapsed .sidebar button:not(.sidebar-toggle) {
+    display: block;
+    padding: 12px 14px;
+    font-size: 13px;
+    text-align: left;
   }
 
   .account-menu,

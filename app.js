@@ -727,6 +727,7 @@ let currentLanguage = localStorage.getItem("bybridgeLanguage") || "en";
 let currentSession = parseStoredJson("bybridgeAdminSession");
 let activeViewId = ["front", "admin"].includes(localStorage.getItem("bybridgeActiveView")) ? localStorage.getItem("bybridgeActiveView") : "front";
 let activeAdminTabId = localStorage.getItem("bybridgeAdminTab") || "maids";
+let adminSidebarCollapsed = localStorage.getItem("bybridgeAdminSidebar") === "collapsed";
 let adminAccountsCache = [];
 let remoteSaveTimer = null;
 let isHydratingSharedState = false;
@@ -850,6 +851,10 @@ function statusLabel(status) {
 
 function uiLabel(en, zh) {
   return currentLanguage === "zh" ? zh : en;
+}
+
+function shortLabel(value) {
+  return String(value || "").trim().slice(0, 1).toUpperCase();
 }
 
 function currentUser() {
@@ -1111,6 +1116,7 @@ function renderLanguageLabels() {
   $("#loginSubmitBtn").textContent = uiLabel("Login", "登录");
   $("#userTitle").textContent = uiLabel("Account Management", "账号管理");
   $("#addUserBtn").textContent = uiLabel("Add Employee Account", "新增员工账号");
+  renderAdminSidebarState();
   $$("#languageSwitch button").forEach((button) => {
     button.classList.toggle("active", button.dataset.lang === currentLanguage);
   });
@@ -2712,20 +2718,20 @@ function renderTermsOfUse() {
 
 function renderAdminCategoryTabs() {
   const modules = [
-    { id: "maids", label: uiLabel("Personnel Management", "人员管理") },
-    { id: "clients", label: uiLabel("Client Management", "客户管理") },
-    { id: "process", label: uiLabel("Employment Process", "雇佣流程") },
-    { id: "documents", label: uiLabel("Signed Documents", "签署文件") },
-    { id: "downloads", label: uiLabel("Form Downloads", "表格下载") }
+    { id: "maids", label: uiLabel("Personnel Management", "人员管理"), short: "P" },
+    { id: "clients", label: uiLabel("Client Management", "客户管理"), short: "C" },
+    { id: "process", label: uiLabel("Employment Process", "雇佣流程"), short: "E" },
+    { id: "documents", label: uiLabel("Signed Documents", "签署文件"), short: "S" },
+    { id: "downloads", label: uiLabel("Form Downloads", "表格下载"), short: "F" }
   ];
   const accountModule = canManageAccounts()
     ? `
       <section class="admin-category-group account-group">
         <div class="admin-category-heading">
-          <span>${uiLabel("Administration", "系统管理")}</span>
+          <span data-short="A">${uiLabel("Administration", "系统管理")}</span>
         </div>
         <div class="admin-module-list">
-          <button class="${document.querySelector(".admin-tab.active-admin-tab")?.id === "users" ? "active" : ""}" type="button" data-admin-tab-only="users">
+          <button class="${document.querySelector(".admin-tab.active-admin-tab")?.id === "users" ? "active" : ""}" type="button" data-admin-tab-only="users" data-short="A" title="${uiLabel("Account Management", "账号管理")}">
             ${uiLabel("Account Management", "账号管理")}
           </button>
         </div>
@@ -2736,17 +2742,18 @@ function renderAdminCategoryTabs() {
   $("#adminCategoryTabs").innerHTML = Object.keys(categoryMeta)
     .map((key) => {
       const count = workersForCategory(key).length;
+      const categoryTitle = localized(categoryMeta[key].title);
       return `
         <section class="admin-category-group">
           <div class="admin-category-heading">
-            <span>${localized(categoryMeta[key].title)}</span>
+            <span data-short="${shortLabel(categoryTitle)}">${categoryTitle}</span>
             <em>${count}</em>
           </div>
           <div class="admin-module-list">
             ${modules
               .map(
                 (module) => `
-                  <button class="${key === activeAdminCategory && module.id === activeTab ? "active" : ""}" type="button" data-admin-category="${key}" data-admin-tab="${module.id}">
+                  <button class="${key === activeAdminCategory && module.id === activeTab ? "active" : ""}" type="button" data-admin-category="${key}" data-admin-tab="${module.id}" data-short="${module.short}" title="${module.label}">
                     ${module.label}
                   </button>
                 `
@@ -2767,6 +2774,18 @@ function renderAdminCategoryTabs() {
   $("#uploadBiodataText").textContent = uiLabel("Upload Biodata PDF", "上传 Biodata PDF");
   const upload = $("#maidPdfInput")?.closest(".upload-btn");
   if (upload) upload.style.display = activeAdminCategory === "女佣" ? "inline-flex" : "none";
+  renderAdminSidebarState();
+}
+
+function renderAdminSidebarState() {
+  const layout = $("#adminLayout");
+  const toggle = $("#adminSidebarToggle");
+  if (!layout || !toggle) return;
+  layout.classList.toggle("sidebar-collapsed", adminSidebarCollapsed);
+  toggle.setAttribute("aria-expanded", String(!adminSidebarCollapsed));
+  $("#adminSidebarToggleText").textContent = adminSidebarCollapsed
+    ? uiLabel("Expand Menu", "展开菜单")
+    : uiLabel("Collapse Menu", "收起菜单");
 }
 
 function renderAdminAuth() {
@@ -3830,6 +3849,12 @@ function bindEvents() {
     renderTimeline();
     renderDocuments();
     renderDownloads();
+  });
+
+  $("#adminSidebarToggle").addEventListener("click", () => {
+    adminSidebarCollapsed = !adminSidebarCollapsed;
+    localStorage.setItem("bybridgeAdminSidebar", adminSidebarCollapsed ? "collapsed" : "expanded");
+    renderAdminSidebarState();
   });
 
   document.addEventListener("click", (event) => {

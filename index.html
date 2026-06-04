@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Bybridge Job Agency System</title>
-    <link rel="stylesheet" href="styles.css?v=20260604-5" />
+    <link rel="stylesheet" href="styles.css?v=20260604-6" />
   </head>
   <body>
     <header class="topbar">
@@ -92,8 +92,11 @@
             <button id="loginSubmitBtn" class="primary-btn" type="submit">Login</button>
           </form>
         </div>
-        <div class="admin-layout">
+        <div class="admin-layout" id="adminLayout">
           <aside class="sidebar">
+            <button id="adminSidebarToggle" class="sidebar-toggle" type="button" aria-expanded="true">
+              <span id="adminSidebarToggleText">Collapse Menu</span>
+            </button>
             <div class="admin-category-switch" id="adminCategoryTabs" aria-label="Admin categories and business modules"></div>
           </aside>
 
@@ -229,6 +232,6 @@
       </div>
     </dialog>
 
-    <script src="app.js?v=20260604-5"></script>
+    <script src="app.js?v=20260604-6"></script>
   </body>
 </html>
