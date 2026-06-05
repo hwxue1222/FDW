@@ -2615,6 +2615,13 @@ function openRequirementPreview(maidId, clientId, stage, requirement) {
     previewMaidProfilePdf(maidId);
     return;
   }
+  const doc = documentsForRequirement(maidId, stage, requirement);
+  const templateUrl = doc?.files?.find((file) => file.templateUrl)?.templateUrl || formTemplates.find((item) => item.title === requirement.templateTitle)?.url;
+  if (templateUrl) {
+    previewFrame.dataset.objectUrl = "";
+    openPdfPreview(templateUrl, `${requirement.templateTitle} PDF`);
+    return;
+  }
   const url = URL.createObjectURL(new Blob([requirementPreviewHtml(maidId, clientId, stage, requirement)], { type: "text/html" }));
   previewFrame.dataset.objectUrl = url;
   if (previewTitle) previewTitle.textContent = `${requirement.templateTitle} Preview`;
