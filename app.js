@@ -1161,12 +1161,6 @@ function renderLanguageLabels() {
   $$("#languageSwitch button").forEach((button) => {
     button.classList.toggle("active", button.dataset.lang === currentLanguage);
   });
-  setSelectOptions($("#experienceFilter"), [
-    { value: "全部", label: txt().all },
-    { value: "2", label: txt().yearsMore(2) },
-    { value: "4", label: txt().yearsMore(4) },
-    { value: "6", label: txt().yearsMore(6) }
-  ]);
 }
 
 const previewDialog = $("#previewDialog");
