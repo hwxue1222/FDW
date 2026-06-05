@@ -92,20 +92,23 @@ def checkbox(c, name, x, y, text):
     label(c, text, x + 15, y + 2, 7)
 
 
+def right_label(c, text, x, y, size=8, bold=False):
+    c.setFillColor(INK)
+    c.setFont("Helvetica-Bold" if bold else "Helvetica", size)
+    c.drawRightString(x, y, text)
+
+
 def item_row(c, y, code, desc, standard_price="", note="", amount_w=76):
     checkbox(c, f"{code}_selected", MARGIN + 4, y + 2, "")
     label(c, desc, MARGIN + 24, y + 5, 8)
     if note:
-        small(c, note, MARGIN + 210, y + 5)
-    price_x = PAGE_W - MARGIN - 180
-    price_size = 8
-    if len(standard_price) >= 18:
-        price_x = PAGE_W - MARGIN - amount_w - 158
-        price_size = 7
-    label(c, standard_price, price_x, y + 5, price_size, True)
+        small(c, note, MARGIN + 24, y - 7)
+    price_right = PAGE_W - MARGIN - amount_w - 24
+    price_size = 7 if len(standard_price) >= 18 else 8
+    right_label(c, standard_price, price_right, y + 5, price_size, True)
     label(c, "$", PAGE_W - MARGIN - amount_w - 14, y + 5, 8, True)
     text_field(c, f"{code}_amount", PAGE_W - MARGIN - amount_w, y + 1, amount_w, 15)
-    return y - 22
+    return y - (28 if note else 22)
 
 
 def total_row(c, y, code, desc, amount_w=90):

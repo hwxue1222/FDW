@@ -439,7 +439,7 @@ const externalWorkers = [
 
 const formTemplates = [
   { title: "Biodata", url: "assets/blank_biodata_template.pdf", categories: ["女佣"] },
-  { title: "Quotation", url: "assets/blank_quotation_template.pdf", categories: ["女佣", "建筑", "服务"] },
+  { title: "Quotation", url: "assets/blank_quotation_template.v2.pdf", categories: ["女佣", "建筑", "服务"] },
   { title: "Work Permit Application Form", url: "assets/work_permit_application_form.fillable.v10.pdf", categories: ["女佣", "建筑", "服务"] },
   { title: "Standard Service Agreement", url: "assets/blank_service_agreement_template.pdf", categories: ["女佣", "建筑", "服务"] },
   { title: "Tax Declaration Form", url: "assets/tax_declaration_form.fillable.v2.pdf", categories: ["女佣", "建筑", "服务"] },
@@ -2616,7 +2616,8 @@ function openRequirementPreview(maidId, clientId, stage, requirement) {
     return;
   }
   const doc = documentsForRequirement(maidId, stage, requirement);
-  const templateUrl = doc?.files?.find((file) => file.templateUrl)?.templateUrl || formTemplates.find((item) => item.title === requirement.templateTitle)?.url;
+  const currentTemplateUrl = formTemplates.find((item) => item.title === requirement.templateTitle)?.url;
+  const templateUrl = currentTemplateUrl || doc?.files?.find((file) => file.templateUrl)?.templateUrl;
   if (templateUrl) {
     previewFrame.dataset.objectUrl = "";
     openPdfPreview(templateUrl, `${requirement.templateTitle} PDF`);
