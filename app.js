@@ -2522,18 +2522,31 @@ function requirementPreviewHtml(maidId, clientId, stage, requirement) {
   const doc = documentsForRequirement(maidId, stage, requirement);
   const filled = Boolean(draft || doc);
   const signed = doc?.status === "已签署";
-  const rows = [
-    ["Document", requirement.templateTitle],
-    ["Stage", stage],
-    ["Client", client?.name || "-"],
-    ["Worker", maid?.name || "-"],
+  const signerRole = doc?.signerRole || draft?.signerRole || requirement.signerRole;
+  const signatureArea = doc?.signatureArea || draft?.signatureArea || requirement.signatureArea;
+  const defaultSignerName = signerRole === "FDW" ? maid?.name || "" : client?.name || "";
+  const mergedFields = [
+    ["Client Name", client?.name || "-"],
+    ["Client Phone", client?.phone || "-"],
+    ["Worker Name", maid?.name || "-"],
     ["Reference No.", maid?.refNo || "-"],
-    ["Signer", signerLabel(doc?.signerRole || draft?.signerRole || requirement.signerRole)],
-    ["Signature Area", doc?.signatureArea || draft?.signatureArea || requirement.signatureArea],
+    ["Passport No.", maid?.passportNo || "-"],
+    ["Nationality", maid?.nationality || "-"],
+    ["Date of Birth", maid?.dateOfBirth || "-"],
+    ["Salary", maid?.salary ? `S$${maid.salary}` : "-"],
+    ["Languages", maid?.languages || "-"],
+    ["Process Stage", stage],
+    ["Document", requirement.templateTitle],
+    ["Prepared / Filled Date", doc?.filledAt || draft?.filledAt || "-"]
+  ];
+  const rows = [
+    ["Signing Party", signerLabel(signerRole)],
+    ["Signature Area", signatureArea],
     ["Fill Status", filled ? "Filled" : "Not filled"],
-    ["Filled Date", doc?.filledAt || draft?.filledAt || "-"],
-    ["Signing Status", doc ? statusLabel(doc.status) : "Not sent"],
+    ["Signing Link Status", doc ? statusLabel(doc.status) : "Not sent"],
+    ["Sent Date", doc?.sentAt || "-"],
     ["Signed Date", doc?.signedAt || "-"],
+    ["Signed By", doc?.signedBy || (signed ? defaultSignerName : "-")],
     ["Fill Notes", doc?.fillNotes || draft?.fillNotes || "Information will be filled from worker and client profile."]
   ];
   return `<!doctype html>
@@ -2541,23 +2554,54 @@ function requirementPreviewHtml(maidId, clientId, stage, requirement) {
       <head>
         <meta charset="utf-8" />
         <style>
-          body { font-family: Arial, sans-serif; color: #1f2824; margin: 36px; }
-          h1 { color: #17613e; margin: 0 0 8px; font-size: 28px; }
-          .sub { color: #61706a; margin-bottom: 24px; }
+          body { font-family: Arial, sans-serif; color: #1f2824; margin: 34px; background: #f7faf8; }
+          .page { max-width: 980px; margin: 0 auto; padding: 34px; background: #fff; border: 1px solid #d9e4df; }
+          h1 { color: #17613e; margin: 0 0 8px; font-size: 27px; }
+          h2 { margin: 24px 0 10px; color: #17613e; font-size: 18px; }
+          .sub { color: #61706a; margin-bottom: 20px; }
+          .notice { padding: 10px 12px; border: 1px solid #d9e4df; background: #eef5f1; color: #4f6059; font-weight: 700; }
           table { border-collapse: collapse; width: 100%; }
-          th, td { border: 1px solid #d9e4df; padding: 12px 14px; text-align: left; vertical-align: top; }
+          th, td { border: 1px solid #d9e4df; padding: 10px 12px; text-align: left; vertical-align: top; }
           th { width: 28%; background: #eef5f1; color: #4f6059; }
-          .signature { margin-top: 36px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
-          .sig-box { border: 1px solid #d9e4df; padding: 14px; height: 90px; }
-          .line { border-bottom: 1px solid #66736d; margin-top: 38px; }
+          .field-grid { display: grid; grid-template-columns: 1fr 1fr; border-top: 1px solid #d9e4df; border-left: 1px solid #d9e4df; }
+          .field { display: grid; grid-template-columns: 160px 1fr; border-right: 1px solid #d9e4df; border-bottom: 1px solid #d9e4df; min-height: 42px; }
+          .field span { padding: 10px; background: #eef5f1; color: #4f6059; font-weight: 700; }
+          .field strong { padding: 10px; font-weight: 700; }
+          .signature { margin-top: 18px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+          .sig-box { border: 1px solid #d9e4df; padding: 13px; min-height: 106px; }
+          .sig-title { color: #17613e; font-weight: 800; }
+          .sig-status { margin-top: 8px; color: #61706a; font-size: 13px; min-height: 18px; }
+          .line { border-bottom: 1px solid #66736d; margin-top: 32px; }
+          .signed { color: #17613e; font-weight: 800; }
         </style>
       </head>
       <body>
-        <h1>${escapeHtml(requirement.templateTitle)}</h1>
-        <div class="sub">${escapeHtml(stage)} · ${signed ? "Signed" : doc ? "Sent for signature" : filled ? "Filled, not sent" : "Draft preview"}</div>
-        <table>${rows.map(([label, value]) => `<tr><th>${escapeHtml(label)}</th><td>${escapeHtml(value)}</td></tr>`).join("")}</table>
-        <div class="signature">
-          ${["FDW", "Employer", "EA Personnel Name / Registration No."].map((label) => `<div class="sig-box"><strong>${label}</strong><div class="line"></div><small>Signature</small></div>`).join("")}
+        <div class="page">
+          <h1>${escapeHtml(requirement.templateTitle)}</h1>
+          <div class="sub">${escapeHtml(stage)} · ${signed ? "Signed preview" : doc ? "Pending signature preview" : filled ? "Filled preview, not sent" : "Draft preview"}</div>
+          <div class="notice">Preview for checking filled information and required signature placement before or after signing.</div>
+
+          <h2>Filled Information</h2>
+          <div class="field-grid">
+            ${mergedFields.map(([label, value]) => `<div class="field"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`).join("")}
+          </div>
+
+          <h2>Signing Details</h2>
+          <table>${rows.map(([label, value]) => `<tr><th>${escapeHtml(label)}</th><td>${escapeHtml(value)}</td></tr>`).join("")}</table>
+
+          <h2>Signature Section</h2>
+          <div class="signature">
+            ${["FDW", "Employer", "EA Personnel Name / Registration No."].map((label) => {
+              const isTarget = label === signerLabel(signerRole) || (label === "Employer" && signerRole === "Employer") || (label === "FDW" && signerRole === "FDW");
+              const signedText = signed && isTarget ? `${doc?.signedBy || defaultSignerName || signerLabel(signerRole)} / ${doc?.signedAt || ""}` : "";
+              return `<div class="sig-box">
+                <div class="sig-title">${label}${isTarget ? " *" : ""}</div>
+                <div class="sig-status">${isTarget ? escapeHtml(signatureArea) : "Not required for this document"}</div>
+                <div class="line"></div>
+                <small>${signedText ? `<span class="signed">${escapeHtml(signedText)}</span>` : "Signature"}</small>
+              </div>`;
+            }).join("")}
+          </div>
         </div>
       </body>
     </html>`;
@@ -2567,6 +2611,10 @@ function openRequirementPreview(maidId, clientId, stage, requirement) {
   if (!previewDialog || !previewFrame) return;
   const previousUrl = previewFrame.dataset.objectUrl || "";
   if (previousUrl) URL.revokeObjectURL(previousUrl);
+  if (requirement.templateTitle === "Biodata") {
+    previewMaidProfilePdf(maidId);
+    return;
+  }
   const url = URL.createObjectURL(new Blob([requirementPreviewHtml(maidId, clientId, stage, requirement)], { type: "text/html" }));
   previewFrame.dataset.objectUrl = url;
   if (previewTitle) previewTitle.textContent = `${requirement.templateTitle} Preview`;
